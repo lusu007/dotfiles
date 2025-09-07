@@ -1,4 +1,4 @@
-# Felipe Santos' dotfiles
+# Lukas Jost' dotfiles
 
 Bootstrap your Ubuntu in a single command!
 

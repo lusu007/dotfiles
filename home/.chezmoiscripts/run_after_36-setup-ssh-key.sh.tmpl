@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+
+# {{ template "scripts-library" }}
+
+# The following line is for ShellCheck to correctly identify the above include
+true || source ../.chezmoitemplates/scripts-library
+
+function is_ssh_installed() {
+  command -v ssh >/dev/null 2>&1
+}
+
+function validate_ssh_key_file() {
+  local key_file="$1"
+  if [[ ! -f "${key_file}" ]]; then
+    return 1
+  fi
+  
+  # Check if it's a valid SSH private key
+  if head -1 "${key_file}" | grep -q "BEGIN.*PRIVATE KEY"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function get_ssh_key_type() {
+  local key_file="$1"
+  if head -1 "${key_file}" | grep -q "BEGIN RSA PRIVATE KEY"; then
+    echo "rsa"
+  elif head -1 "${key_file}" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
+    echo "openssh"
+  elif head -1 "${key_file}" | grep -q "BEGIN EC PRIVATE KEY"; then
+    echo "ecdsa"
+  elif head -1 "${key_file}" | grep -q "BEGIN.*PRIVATE KEY"; then
+    echo "ed25519"
+  else
+    echo "unknown"
+  fi
+}
+
+function copy_ssh_key() {
+  local key_file="$1"
+  local key_name="$2"
+  
+  local ssh_dir="${HOME}/.ssh"
+  local key_path="${ssh_dir}/${key_name}"
+  
+  # Create .ssh directory if it doesn't exist
+  if [[ ! -d "${ssh_dir}" ]]; then
+    log_task "Creating SSH directory: ${ssh_dir}"
+    mkdir -p "${ssh_dir}"
+    chmod 700 "${ssh_dir}"
+  fi
+  
+  # Copy the key file
+  log_task "Copying SSH key to ${key_path}"
+  cp "${key_file}" "${key_path}"
+  chmod 600 "${key_path}"
+  
+  log_info "SSH key copied to ${key_path}"
+}
+
+function generate_ssh_key() {
+  local key_type="$1"
+  local key_name="$2"
+  local email="$3"
+  
+  local ssh_dir="${HOME}/.ssh"
+  local key_path="${ssh_dir}/${key_name}"
+  
+  # Create .ssh directory if it doesn't exist
+  if [[ ! -d "${ssh_dir}" ]]; then
+    log_task "Creating SSH directory: ${ssh_dir}"
+    mkdir -p "${ssh_dir}"
+    chmod 700 "${ssh_dir}"
+  fi
+  
+  log_task "Generating new SSH key: ${key_type}"
+  
+  # Generate the key
+  ssh-keygen -t "${key_type}" -C "${email}" -f "${key_path}" -N ""
+  
+  log_info "SSH key generated at ${key_path}"
+}
+
+function add_to_ssh_agent() {
+  local key_path="$1"
+  
+  log_task "Adding SSH key to ssh-agent"
+  
+  # Start ssh-agent if not running
+  if ! pgrep ssh-agent >/dev/null; then
+    log_task "Starting ssh-agent"
+    eval "$(ssh-agent -s)"
+  fi
+  
+  # Add the key to ssh-agent
+  if ssh-add "${key_path}"; then
+    log_info "SSH key added to ssh-agent"
+  else
+    log_warning "Failed to add SSH key to ssh-agent"
+  fi
+}
+
+function display_public_key() {
+  local key_path="$1"
+  local public_key_path="${key_path}.pub"
+  
+  if [[ ! -f "${public_key_path}" ]]; then
+    log_error "Public key not found at ${public_key_path}"
+    return 1
+  fi
+  
+  log_task "Displaying SSH public key for GitHub/GitLab"
+  echo ""
+  log_manual_action "Copy the following SSH public key and add it to your GitHub/GitLab account:"
+  echo ""
+  echo "GitHub:"
+  echo "1. Go to GitHub.com → Settings → SSH and GPG keys"
+  echo "2. Click 'New SSH key'"
+  echo "3. Paste the key below:"
+  echo ""
+  echo "GitLab:"
+  echo "1. Go to GitLab.com → Preferences → SSH Keys"
+  echo "2. Click 'Add new key'"
+  echo "3. Paste the key below:"
+  echo ""
+  echo "--- START SSH PUBLIC KEY ---"
+  cat "${public_key_path}"
+  echo "--- END SSH PUBLIC KEY ---"
+  echo ""
+}
+
+function configure_ssh_config() {
+  local key_name="$1"
+  local key_path="${HOME}/.ssh/${key_name}"
+  
+  local ssh_config="${HOME}/.ssh/config"
+  
+  log_task "Configuring SSH config"
+  
+  # Create SSH config if it doesn't exist
+  if [[ ! -f "${ssh_config}" ]]; then
+    touch "${ssh_config}"
+    chmod 600 "${ssh_config}"
+  fi
+  
+  # Add GitHub configuration if not already present
+  if ! grep -q "Host github.com" "${ssh_config}"; then
+    cat >> "${ssh_config}" << EOF
+
+# GitHub
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ${key_path}
+    IdentitiesOnly yes
+EOF
+    log_info "Added GitHub configuration to SSH config"
+  else
+    log_info "GitHub configuration already exists in SSH config"
+  fi
+  
+  # Add GitLab configuration if not already present
+  if ! grep -q "Host gitlab.com" "${ssh_config}"; then
+    cat >> "${ssh_config}" << EOF
+
+# GitLab
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentityFile ${key_path}
+    IdentitiesOnly yes
+EOF
+    log_info "Added GitLab configuration to SSH config"
+  else
+    log_info "GitLab configuration already exists in SSH config"
+  fi
+}
+
+function test_ssh_connection() {
+  log_task "Testing SSH connection to GitHub"
+  
+  if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    log_info "SSH connection to GitHub successful"
+  else
+    log_warning "SSH connection to GitHub failed or not configured"
+    echo "This is normal if you haven't added the public key to GitHub yet."
+  fi
+  
+  log_task "Testing SSH connection to GitLab"
+  
+  if ssh -T git@gitlab.com 2>&1 | grep -q "successfully authenticated"; then
+    log_info "SSH connection to GitLab successful"
+  else
+    log_warning "SSH connection to GitLab failed or not configured"
+    echo "This is normal if you haven't added the public key to GitLab yet."
+  fi
+}
+
+function setup_ssh_key() {
+  log_task "Setting up SSH key for GitHub/GitLab"
+  
+  # Check if SSH is installed
+  if ! is_ssh_installed; then
+    log_info "SSH is not installed. Installing SSH client..."
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update
+      sudo apt install -y openssh-client
+    elif command -v brew >/dev/null 2>&1; then
+      brew install openssh
+    else
+      log_error "Cannot install SSH automatically. Please install it manually."
+      return 1
+    fi
+  fi
+  
+  # Check if we have SSH key configuration
+  if [[ -z "${ssh_key_name:-}" ]]; then
+    log_info "No SSH key name configured. Skipping SSH setup."
+    return 0
+  fi
+  
+  local key_name="${ssh_key_name}"
+  local key_path="${HOME}/.ssh/${key_name}"
+  
+  # Check if the key already exists
+  if [[ -f "${key_path}" ]]; then
+    log_info "SSH key ${key_name} already exists"
+  else
+    log_info "SSH key ${key_name} not found"
+    
+    # Ask if user wants to import a key file
+    if [[ -t 0 ]]; then  # Check if running interactively
+      echo ""
+      log_manual_action "SSH key ${key_name} not found in your SSH directory."
+      echo "You can:"
+      echo "1. Import an existing SSH key file"
+      echo "2. Generate a new SSH key"
+      echo "3. Skip SSH setup for now"
+      echo ""
+      
+      read -p "Do you want to import an existing SSH key file? (y/N): " -r
+      if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+        while true; do
+          read -p "Enter the path to your SSH private key file: " -r key_file
+          if [[ -f "${key_file}" ]]; then
+            if validate_ssh_key_file "${key_file}"; then
+              local key_type
+              key_type=$(get_ssh_key_type "${key_file}")
+              log_info "Valid SSH key detected (type: ${key_type})"
+              copy_ssh_key "${key_file}" "${key_name}"
+              break
+            else
+              echo "File '${key_file}' is not a valid SSH private key. Try again? (y/N): "
+              read -r
+              if [[ ! ${REPLY} =~ ^[Yy]$ ]]; then
+                log_info "Skipping SSH setup"
+                return 0
+              fi
+            fi
+          else
+            echo "File '${key_file}' does not exist. Try again? (y/N): "
+            read -r
+            if [[ ! ${REPLY} =~ ^[Yy]$ ]]; then
+              log_info "Skipping SSH setup"
+              return 0
+            fi
+          fi
+        done
+      else
+        # Ask if user wants to generate a new key
+        read -p "Do you want to generate a new SSH key? (y/N): " -r
+        if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+          echo ""
+          echo "Available key types:"
+          echo "1. ed25519 (recommended, most secure)"
+          echo "2. rsa (widely supported)"
+          echo "3. ecdsa (good alternative)"
+          echo ""
+          
+          local key_type_choice
+          while true; do
+            read -p "Choose key type (1-3) [1]: " -r key_type_choice
+            key_type_choice=${key_type_choice:-1}
+            case "${key_type_choice}" in
+              1) key_type="ed25519"; break ;;
+              2) key_type="rsa"; break ;;
+              3) key_type="ecdsa"; break ;;
+              *) echo "Please choose 1, 2, or 3." ;;
+            esac
+          done
+          
+          local email
+          email=$(promptString "Enter your email address for the SSH key" "${email:-}")
+          generate_ssh_key "${key_type}" "${key_name}" "${email}"
+        else
+          log_info "Skipping SSH setup"
+          return 0
+        fi
+      fi
+    else
+      log_info "Running non-interactively. Skipping SSH key setup."
+      return 0
+    fi
+  fi
+  
+  # Add to ssh-agent
+  add_to_ssh_agent "${key_path}"
+  
+  # Configure SSH config
+  configure_ssh_config "${key_name}"
+  
+  # Display public key for GitHub/GitLab
+  display_public_key "${key_path}"
+  
+  # Test SSH connection
+  test_ssh_connection
+  
+  log_info "SSH key setup completed!"
+  log_manual_action "Next steps:"
+  echo "1. Add the SSH public key to your GitHub/GitLab account (see above)"
+  echo "2. Test your setup by cloning a repository: git clone git@github.com:username/repo.git"
+  echo "3. Verify SSH connection: ssh -T git@github.com"
+}
+
+# Only run if we have SSH key configuration
+if [[ -n "${ssh_key_name:-}" ]]; then
+  setup_ssh_key
+else
+  log_info "No SSH key name configured. Skipping SSH key setup."
+fi

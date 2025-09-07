@@ -1,6 +1,9 @@
 [user]
 name = {{ .name }}
 email = {{ .email }}
+{{- if .gpg_key_id }}
+signingkey = {{ .gpg_key_id }}
+{{- end }}
 
 [core]
 editor = {{ .editor }}
@@ -23,6 +26,24 @@ autoStash = true
 
 [push]
 autoSetupRemote = true
+
+{{- if .gpg_key_id }}
+[commit]
+gpgsign = true
+
+[tag]
+gpgsign = true
+
+[gpg]
+program = gpg
+{{- end }}
+
+{{- if .ssh_key_name }}
+[url "git@github.com:"]
+    insteadOf = https://github.com/
+[url "git@gitlab.com:"]
+    insteadOf = https://gitlab.com/
+{{- end }}
 
 [init]
 defaultBranch = master

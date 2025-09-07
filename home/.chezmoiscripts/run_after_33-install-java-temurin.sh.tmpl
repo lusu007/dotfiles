@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+# {{ template "scripts-library" }}
+
+# The following line is for ShellCheck to correctly identify the above include
+true || source ../.chezmoitemplates/scripts-library
+
+function is_java_installed() {
+  # Check if any Java version is installed via SDKMAN!
+  [[ -d "${HOME}/.sdkman/candidates/java" ]] && [[ -n "$(ls -A "${HOME}/.sdkman/candidates/java" 2>/dev/null)" ]]
+}
+
+function is_lts_temurin_installed() {
+  # Check if the latest LTS Temurin version is already installed
+  local latest_version
+  latest_version=$(get_latest_lts_temurin)
+  if [[ -n "${latest_version}" ]]; then
+    [[ -d "${HOME}/.sdkman/candidates/java/${latest_version}" ]]
+  else
+    return 1
+  fi
+}
+
+function get_latest_lts_temurin() {
+  # Get the latest LTS Temurin version from SDKMAN!
+  # This will return something like "17.0.2-tem"
+  # Run in subshell to avoid set -u issues
+  (
+    set +u
+    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || return 1
+
+    # Wait a moment for SDKMAN! to be ready
+    sleep 2
+
+    # Get the list directly (no timeout needed as sdk list is fast)
+    local java_list
+    java_list=$(sdk list java 2>/dev/null) || return 1
+
+    # Check if we got any output
+    if [[ -z "${java_list}" ]]; then
+      return 1
+    fi
+
+    echo "${java_list}" | grep -i temurin | head -1 | awk '{print $NF}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+  )
+}
+
+function install_java_temurin() {
+  log_task "Installing latest LTS Temurin JDK via SDKMAN!"
+
+  # Run SDKMAN operations in a subshell without set -u to avoid unbound variable errors
+  (
+    set +u
+    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
+      log_error "Failed to initialize SDKMAN!"
+      exit 1
+    }
+
+    # Wait a moment for SDKMAN! to be ready
+    sleep 2
+
+    # Get the latest LTS Temurin version
+    local java_version
+    java_version=$(get_latest_lts_temurin)
+
+    if [[ -z "${java_version}" ]]; then
+      log_error "Could not determine latest LTS Temurin version"
+      exit 1
+    fi
+
+    log_info "Installing Java Temurin version: ${java_version}"
+
+    # Install the latest LTS Temurin JDK with error handling
+    if ! sdk install java "${java_version}"; then
+      log_error "Failed to install Java ${java_version}"
+      exit 1
+    fi
+
+    # Set it as the default version
+    log_task "Setting Java ${java_version} as default"
+    if ! sdk default java "${java_version}"; then
+      log_error "Failed to set Java ${java_version} as default"
+      exit 1
+    fi
+  )
+
+  log_task "Java Temurin installation completed"
+}
+
+# Only install if SDKMAN! is available and LTS Temurin is not already installed
+if [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
+  # Check if we can get the latest version (this tests SDKMAN functionality)
+  latest_version=$(get_latest_lts_temurin)
+
+  if [[ -n "${latest_version}" ]]; then
+    if ! is_lts_temurin_installed; then
+      install_java_temurin
+    else
+      log_info "Latest LTS Temurin Java (${latest_version}) is already installed via SDKMAN!"
+    fi
+  else
+    log_warning "Could not determine latest LTS Temurin version. Skipping Java installation."
+  fi
+else
+  log_error "SDKMAN! is not available. Please ensure SDKMAN! is installed first."
+fi

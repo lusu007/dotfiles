@@ -4,6 +4,11 @@ if [[ -r "${HOME}/.profile" ]]; then
   source "${HOME}/.profile"
 fi
 
+# Initialize SDKMAN!
+if [[ -r "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
+  source "${HOME}/.sdkman/bin/sdkman-init.sh"
+fi
+
 # https://github.com/romkatv/powerlevel10k#how-do-i-initialize-direnv-when-using-instant-prompt
 if (( ${+commands[direnv]} )); then
   emulate zsh -c "$(direnv export zsh)"

@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+# {{ template "scripts-library" }}
+
+# The following line is for ShellCheck to correctly identify the above include
+true || source ../.chezmoitemplates/scripts-library
+
+function is_gpg_installed() {
+  command -v gpg >/dev/null 2>&1
+}
+
+function is_git_installed() {
+  command -v git >/dev/null 2>&1
+}
+
+function has_gpg_key() {
+  local key_id="$1"
+  gpg --list-secret-keys --keyid-format LONG "$key_id" >/dev/null 2>&1
+}
+
+function validate_gpg_key_id() {
+  local key_id="$1"
+  echo "$key_id" | grep -qE '^[A-F0-9]{8,40}$'
+}
+
+function import_gpg_key() {
+  local key_file="$1"
+  if [[ ! -f "$key_file" ]]; then
+    log_error "GPG key file '$key_file' does not exist"
+    return 1
+  fi
+  
+  log_task "Importing GPG key from '$key_file'"
+  if gpg --import "$key_file"; then
+    log_info "GPG key imported successfully"
+    return 0
+  else
+    log_error "Failed to import GPG key from '$key_file'"
+    return 1
+  fi
+}
+
+function configure_git_gpg() {
+  local key_id="$1"
+  local email="$2"
+  
+  log_task "Configuring git for GPG signing"
+  
+  # Set the signing key
+  git config --global user.signingkey "$key_id"
+  
+  # Enable GPG signing for commits
+  git config --global commit.gpgsign true
+  
+  # Enable GPG signing for tags
+  git config --global tag.gpgsign true
+  
+  # Set GPG program (use gpg2 if available, otherwise gpg)
+  if command -v gpg2 >/dev/null 2>&1; then
+    git config --global gpg.program gpg2
+  else
+    git config --global gpg.program gpg
+  fi
+  
+  log_info "Git configured for GPG signing with key $key_id"
+}
+
+function display_public_key() {
+  local key_id="$1"
+  
+  log_task "Displaying GPG public key for GitHub"
+  echo ""
+  log_manual_action "Copy the following GPG public key and add it to your GitHub account:"
+  echo ""
+  echo "1. Go to GitHub.com → Settings → SSH and GPG keys"
+  echo "2. Click 'New GPG key'"
+  echo "3. Paste the key below:"
+  echo ""
+  echo "--- START GPG PUBLIC KEY ---"
+  gpg --armor --export "$key_id"
+  echo "--- END GPG PUBLIC KEY ---"
+  echo ""
+}
+
+function setup_gpg_signing() {
+  log_task "Setting up GPG signing for GitHub"
+  
+  # Check if GPG is installed
+  if ! is_gpg_installed; then
+    log_info "GPG is not installed. Installing GPG..."
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update
+      sudo apt install -y gnupg
+    elif command -v brew >/dev/null 2>&1; then
+      brew install gnupg
+    else
+      log_error "Cannot install GPG automatically. Please install it manually."
+      return 1
+    fi
+  fi
+  
+  # Check if git is installed
+  if ! is_git_installed; then
+    log_error "Git is not installed. Please install it first."
+    return 1
+  fi
+  
+  # Check if we have a GPG key ID configured
+  if [[ -z "${gpg_key_id:-}" ]]; then
+    log_info "No GPG key ID configured. Skipping GPG setup."
+    return 0
+  fi
+  
+  # Validate the GPG key ID format
+  if ! validate_gpg_key_id "$gpg_key_id"; then
+    log_error "Invalid GPG key ID format: $gpg_key_id"
+    return 1
+  fi
+  
+  # Check if the key exists
+  if has_gpg_key "$gpg_key_id"; then
+    log_info "GPG key $gpg_key_id is already available"
+  else
+    log_info "GPG key $gpg_key_id not found in keyring"
+    
+    # Ask if user wants to import a key file
+    if [[ -t 0 ]]; then  # Check if running interactively
+      echo ""
+      log_manual_action "GPG key $gpg_key_id not found in your keyring."
+      echo "You can:"
+      echo "1. Import an existing GPG key file"
+      echo "2. Skip GPG setup for now"
+      echo ""
+      
+      read -p "Do you want to import a GPG key file? (y/N): " -r
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        while true; do
+          read -p "Enter the path to your GPG private key file: " -r key_file
+          if [[ -f "$key_file" ]]; then
+            if import_gpg_key "$key_file"; then
+              break
+            else
+              echo "Failed to import key. Try again? (y/N): "
+              read -r
+              if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Skipping GPG setup"
+                return 0
+              fi
+            fi
+          else
+            echo "File '$key_file' does not exist. Try again? (y/N): "
+            read -r
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+              log_info "Skipping GPG setup"
+              return 0
+            fi
+          fi
+        done
+      else
+        log_info "Skipping GPG setup"
+        return 0
+      fi
+    else
+      log_info "Running non-interactively. Skipping GPG key import."
+      return 0
+    fi
+  fi
+  
+  # Configure git for GPG signing
+  configure_git_gpg "$gpg_key_id" "${email:-}"
+  
+  # Display public key for GitHub
+  display_public_key "$gpg_key_id"
+  
+  log_info "GPG signing setup completed!"
+  log_manual_action "Next steps:"
+  echo "1. Add the GPG public key to your GitHub account (see above)"
+  echo "2. Test your setup by making a commit in any git repository"
+  echo "3. Verify the commit is signed by checking: git log --show-signature"
+}
+
+# Only run if we have a GPG key ID configured
+if [[ -n "${gpg_key_id:-}" ]]; then
+  setup_gpg_signing
+else
+  log_info "No GPG key ID configured. Skipping GPG signing setup."
+fi

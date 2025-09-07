@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# {{ template "scripts-library" }}
+
+# The following line is for ShellCheck to correctly identify the above include
+true || source ../.chezmoitemplates/scripts-library
+
+function is_sdkman_installed() {
+  # Check if SDKMAN directory exists and is functional
+  if [[ -d "${HOME}/.sdkman" ]] && [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
+    # Test if SDKMAN is actually functional by trying to source it
+    (
+      set +u
+      source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null && type sdk >/dev/null 2>&1
+    )
+  else
+    return 1
+  fi
+}
+
+function install_sdkman() {
+  log_task "Installing SDKMAN!"
+
+  # Install SDKMAN! using the official installer
+  # https://sdkman.io/install
+  curl -s "https://get.sdkman.io" | bash
+
+  # Source SDKMAN! to make it available in the current session
+  # shellcheck source=~/.sdkman/bin/sdkman-init.sh
+  # Run in subshell to avoid set -u issues
+  (
+    set +u
+    source "${HOME}/.sdkman/bin/sdkman-init.sh"
+  )
+
+  log_task "SDKMAN! installation completed"
+}
+
+if ! is_sdkman_installed; then
+  install_sdkman
+else
+  log_info "SDKMAN! is already installed"
+fi

@@ -63,8 +63,6 @@ function relocate_user() {
   local find_args=(/ -type d '('
     # https://stackoverflow.com/a/57491476/12156188
     -path /proc
-    # Exclude known docker data dirs
-    -o -path /var/lib/docker
     ')' -prune)
 
   find "${find_args[@]}" -o -group "${old}" -user "${old}" -print0 | xargs -0 --no-run-if-empty chown -ch "${name}:${name}"
