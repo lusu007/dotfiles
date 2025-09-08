@@ -9,7 +9,6 @@ true || source ../.chezmoitemplates/scripts-library
 readonly FLUTTER_VERSION="stable"
 readonly FLUTTER_INSTALL_DIR="${HOME}/development/flutter"
 readonly ANDROID_SDK_DIR="${HOME}/Android/Sdk"
-readonly ANDROID_STUDIO_DIR="${HOME}/android-studio"
 
 function is_flutter_installed() {
   [[ -d "${FLUTTER_INSTALL_DIR}" ]] && [[ -f "${FLUTTER_INSTALL_DIR}/bin/flutter" ]]
@@ -19,9 +18,10 @@ function is_android_sdk_installed() {
   [[ -d "${ANDROID_SDK_DIR}" ]] && [[ -f "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]]
 }
 
-function is_android_studio_installed() {
-  [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
-}
+# Android Studio is not required for Flutter Android development
+# function is_android_studio_installed() {
+#   [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
+# }
 
 function setup_java_environment() {
   log_task "Setting up Java environment for Android SDK"
@@ -265,93 +265,15 @@ function install_android_sdk() {
   log_task "Android SDK installation completed"
 }
 
-function install_android_studio() {
-  log_task "Installing Android Studio"
+# Android Studio installation removed - not required for Flutter Android development
+# function install_android_studio() {
+#   # ... Android Studio installation code removed
+# }
 
-  # Download Android Studio
-  local android_studio_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2025.1.1.14/android-studio-2025.1.1.14-linux.tar.gz"
-  local android_studio_tar="/tmp/android-studio.tar.gz"
-
-  if [[ ! -f "${android_studio_tar}" ]]; then
-    log_info "Downloading Android Studio"
-    c curl -L -o "${android_studio_tar}" "${android_studio_url}"
-  fi
-
-  # Extract Android Studio
-  if [[ ! -d "${ANDROID_STUDIO_DIR}" ]]; then
-    log_info "Extracting Android Studio"
-    c tar -xzf "${android_studio_tar}" -C "/tmp"
-    c mv "/tmp/android-studio" "${ANDROID_STUDIO_DIR}"
-  fi
-
-  # Add Android Studio to PATH
-  ensure_path_entry "${ANDROID_STUDIO_DIR}/bin"
-
-  # Create Android Studio configuration directory for Flutter detection
-  local android_studio_config_dir="${HOME}/.config/Google/AndroidStudio2025.1"
-  c mkdir -p "${android_studio_config_dir}"
-
-  # Create a basic Android Studio configuration to help Flutter detect it
-  if [[ ! -f "${android_studio_config_dir}/idea.properties" ]]; then
-    log_info "Creating Android Studio configuration for Flutter detection"
-    cat > "${android_studio_config_dir}/idea.properties" << 'EOF'
-# Android Studio configuration for Flutter
-idea.config.path=${user.home}/.config/Google/AndroidStudio2025.1
-idea.system.path=${user.home}/.cache/Google/AndroidStudio2025.1
-idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2025.1
-EOF
-  fi
-
-  # Create Android Studio cache directory
-  c mkdir -p "${HOME}/.cache/Google/AndroidStudio2025.1"
-  c mkdir -p "${HOME}/.local/share/Google/AndroidStudio2025.1"
-
-  # Set up Android Studio environment variables
-  export ANDROID_STUDIO_HOME="${ANDROID_STUDIO_DIR}"
-  export STUDIO_VM_OPTIONS="${android_studio_config_dir}/studio64.vmoptions"
-
-  # Clean up downloaded tar
-  c rm -f "${android_studio_tar}"
-
-  log_task "Android Studio installation completed"
-}
-
-function configure_android_studio_for_flutter() {
-  log_task "Configuring Android Studio for Flutter detection"
-
-  # Create Android Studio version file for Flutter detection
-  local version_file="${ANDROID_STUDIO_DIR}/build.txt"
-  if [[ ! -f "${version_file}" ]]; then
-    log_info "Creating Android Studio version file for Flutter detection"
-    echo "AI-251.11496.300.2511.12345678" > "${version_file}"
-  fi
-
-  # Also create the version file in the bin directory (some Flutter versions look there)
-  local bin_version_file="${ANDROID_STUDIO_DIR}/bin/build.txt"
-  if [[ ! -f "${bin_version_file}" ]]; then
-    log_info "Creating Android Studio bin version file for Flutter detection"
-    echo "AI-251.11496.300.2511.12345678" > "${bin_version_file}"
-  fi
-
-  # Create Android Studio properties file
-  local properties_file="${ANDROID_STUDIO_DIR}/bin/studio.properties"
-  if [[ ! -f "${properties_file}" ]]; then
-    log_info "Creating Android Studio properties file"
-    cat > "${properties_file}" << 'EOF'
-# Android Studio properties
-idea.config.path=${user.home}/.config/Google/AndroidStudio2025.1
-idea.system.path=${user.home}/.cache/Google/AndroidStudio2025.1
-idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2025.1
-EOF
-  fi
-
-  # Ensure Android Studio is executable
-  if [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]; then
-    chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
-  fi
-
-  log_task "Android Studio Flutter configuration completed"
-}
+# Android Studio configuration removed - not required for Flutter Android development
+# function configure_android_studio_for_flutter() {
+#   # ... Android Studio configuration code removed
+# }
 
 function configure_flutter_android_sdk() {
   log_task "Configuring Flutter to use Android SDK"
@@ -421,10 +343,7 @@ export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 export PATH="$ANDROID_HOME/emulator:$PATH"
 
-# Android Studio
-export PATH="$HOME/android-studio/bin:$PATH"
-export ANDROID_STUDIO_HOME="$HOME/android-studio"
-export STUDIO_VM_OPTIONS="$HOME/.config/Google/AndroidStudio2025.1/studio64.vmoptions"
+# Android Studio removed - not required for Flutter Android development
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
@@ -511,15 +430,8 @@ else
   log_info "Android SDK is already installed"
 fi
 
-# Install Android Studio
-if ! is_android_studio_installed; then
-  install_android_studio
-else
-  log_info "Android Studio is already installed"
-fi
-
-# Configure Android Studio for Flutter detection
-configure_android_studio_for_flutter
+# Android Studio installation removed - not required for Flutter Android development
+# Flutter can build Android apps using just the Android SDK and command line tools
 
 # Configure Flutter to use Android SDK
 configure_flutter_android_sdk
