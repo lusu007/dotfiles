@@ -248,7 +248,7 @@ function install_android_studio() {
   log_task "Installing Android Studio"
 
   # Download Android Studio
-  local android_studio_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2023.3.1.18/android-studio-2023.3.1.18-linux.tar.gz"
+  local android_studio_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2025.1.1.14/android-studio-2025.1.1.14-linux.tar.gz"
   local android_studio_tar="/tmp/android-studio.tar.gz"
 
   if [[ ! -f "${android_studio_tar}" ]]; then
@@ -267,7 +267,7 @@ function install_android_studio() {
   ensure_path_entry "${ANDROID_STUDIO_DIR}/bin"
 
   # Create Android Studio configuration directory for Flutter detection
-  local android_studio_config_dir="${HOME}/.config/Google/AndroidStudio2023.3"
+  local android_studio_config_dir="${HOME}/.config/Google/AndroidStudio2025.1"
   c mkdir -p "${android_studio_config_dir}"
 
   # Create a basic Android Studio configuration to help Flutter detect it
@@ -275,15 +275,15 @@ function install_android_studio() {
     log_info "Creating Android Studio configuration for Flutter detection"
     cat > "${android_studio_config_dir}/idea.properties" << 'EOF'
 # Android Studio configuration for Flutter
-idea.config.path=${user.home}/.config/Google/AndroidStudio2023.3
-idea.system.path=${user.home}/.cache/Google/AndroidStudio2023.3
-idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2023.3
+idea.config.path=${user.home}/.config/Google/AndroidStudio2025.1
+idea.system.path=${user.home}/.cache/Google/AndroidStudio2025.1
+idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2025.1
 EOF
   fi
 
   # Create Android Studio cache directory
-  c mkdir -p "${HOME}/.cache/Google/AndroidStudio2023.3"
-  c mkdir -p "${HOME}/.local/share/Google/AndroidStudio2023.3"
+  c mkdir -p "${HOME}/.cache/Google/AndroidStudio2025.1"
+  c mkdir -p "${HOME}/.local/share/Google/AndroidStudio2025.1"
 
   # Set up Android Studio environment variables
   export ANDROID_STUDIO_HOME="${ANDROID_STUDIO_DIR}"
@@ -302,7 +302,7 @@ function configure_android_studio_for_flutter() {
   local version_file="${ANDROID_STUDIO_DIR}/build.txt"
   if [[ ! -f "${version_file}" ]]; then
     log_info "Creating Android Studio version file for Flutter detection"
-    echo "AI-233.11799.300.2311.12345678" > "${version_file}"
+    echo "AI-251.11496.300.2511.12345678" > "${version_file}"
   fi
 
   # Create Android Studio properties file
@@ -311,9 +311,9 @@ function configure_android_studio_for_flutter() {
     log_info "Creating Android Studio properties file"
     cat > "${properties_file}" << 'EOF'
 # Android Studio properties
-idea.config.path=${user.home}/.config/Google/AndroidStudio2023.3
-idea.system.path=${user.home}/.cache/Google/AndroidStudio2023.3
-idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2023.3
+idea.config.path=${user.home}/.config/Google/AndroidStudio2025.1
+idea.system.path=${user.home}/.cache/Google/AndroidStudio2025.1
+idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2025.1
 EOF
   fi
 
@@ -358,7 +358,7 @@ export PATH="$ANDROID_HOME/emulator:$PATH"
 # Android Studio
 export PATH="$HOME/android-studio/bin:$PATH"
 export ANDROID_STUDIO_HOME="$HOME/android-studio"
-export STUDIO_VM_OPTIONS="$HOME/.config/Google/AndroidStudio2023.3/studio64.vmoptions"
+export STUDIO_VM_OPTIONS="$HOME/.config/Google/AndroidStudio2025.1/studio64.vmoptions"
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
