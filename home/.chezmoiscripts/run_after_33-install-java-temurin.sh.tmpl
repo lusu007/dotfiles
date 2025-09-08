@@ -25,7 +25,7 @@ function get_latest_lts_temurin() {
   # Get the latest LTS Temurin version from SDKMAN!
   # This will return something like "17.0.2-tem"
   # Note: This function assumes SDKMAN! is already initialized in the calling context
-  
+
   # Wait a moment for SDKMAN! to be ready
   sleep 2
 
@@ -131,18 +131,25 @@ EOF
 
 # Only install if SDKMAN! is available and LTS Temurin is not already installed
 if [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
-  # Check if we can get the latest version (this tests SDKMAN functionality)
-  latest_version=$(get_latest_lts_temurin)
+  # Initialize SDKMAN! first
+  set +u
+  if source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
+    # Check if we can get the latest version (this tests SDKMAN functionality)
+    latest_version=$(get_latest_lts_temurin)
 
-  if [[ -n "${latest_version}" ]]; then
-    if ! is_lts_temurin_installed; then
-      install_java_temurin
+    if [[ -n "${latest_version}" ]]; then
+      if ! is_lts_temurin_installed; then
+        install_java_temurin
+      else
+        log_info "Latest LTS Temurin Java (${latest_version}) is already installed via SDKMAN!"
+      fi
     else
-      log_info "Latest LTS Temurin Java (${latest_version}) is already installed via SDKMAN!"
+      log_warning "Could not determine latest LTS Temurin version. Skipping Java installation."
     fi
   else
-    log_warning "Could not determine latest LTS Temurin version. Skipping Java installation."
+    log_error "Failed to initialize SDKMAN! for Java installation check"
   fi
+  set -u
 else
   log_error "SDKMAN! is not available. Please ensure SDKMAN! is installed first."
 fi
