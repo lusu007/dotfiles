@@ -9,6 +9,7 @@ true || source ../.chezmoitemplates/scripts-library
 readonly FLUTTER_VERSION="stable"
 readonly FLUTTER_INSTALL_DIR="${HOME}/development/flutter"
 readonly ANDROID_SDK_DIR="${HOME}/Android/Sdk"
+readonly ANDROID_STUDIO_DIR="${HOME}/development/android-studio"
 
 function is_flutter_installed() {
   [[ -d "${FLUTTER_INSTALL_DIR}" ]] && [[ -f "${FLUTTER_INSTALL_DIR}/bin/flutter" ]]
@@ -149,6 +150,115 @@ function install_linux_toolchain() {
   done
 
   log_task "Linux toolchain installation completed"
+}
+
+function install_chrome() {
+  log_task "Installing Google Chrome for Flutter web development"
+
+  # Check if Chrome is already installed
+  if command -v google-chrome >/dev/null 2>&1; then
+    log_info "Google Chrome is already installed"
+    return 0
+  fi
+
+  # Update package list
+  sudo apt update
+
+  # Install Google Chrome
+  log_info "Installing Google Chrome"
+  sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends google-chrome-stable
+
+  # Verify installation
+  if command -v google-chrome >/dev/null 2>&1; then
+    log_info "Google Chrome installed successfully"
+    log_info "Chrome version: $(google-chrome --version)"
+  else
+    log_warning "Google Chrome installation may have failed"
+  fi
+}
+
+function is_android_studio_installed() {
+  [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
+}
+
+function install_android_studio() {
+  log_task "Installing Android Studio"
+
+  # Check if Android Studio is already installed
+  if is_android_studio_installed; then
+    log_info "Android Studio is already installed"
+    return 0
+  fi
+
+  # Create development directory
+  mkdir -p "${HOME}/development"
+
+  # Download Android Studio
+  local android_studio_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2025.1.3.7/android-studio-2025.1.3.7-linux.tar.gz"
+  local android_studio_tar="/tmp/android-studio.tar.gz"
+
+  log_info "Downloading Android Studio"
+  curl -L -o "${android_studio_tar}" "${android_studio_url}"
+
+  # Verify download
+  if [[ ! -s "${android_studio_tar}" ]]; then
+    log_error "Android Studio download failed or file is empty"
+    return 1
+  fi
+
+  # Extract Android Studio
+  log_info "Extracting Android Studio"
+  tar -xzf "${android_studio_tar}" -C "${HOME}/development"
+
+  # Move to final location
+  if [[ -d "${HOME}/development/android-studio" ]]; then
+    rm -rf "${ANDROID_STUDIO_DIR}"
+    mv "${HOME}/development/android-studio" "${ANDROID_STUDIO_DIR}"
+  fi
+
+  # Make studio.sh executable
+  chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
+
+  # Clean up downloaded tar
+  rm -f "${android_studio_tar}"
+
+  # Verify installation
+  if is_android_studio_installed; then
+    log_info "Android Studio installed successfully"
+    log_info "Android Studio location: ${ANDROID_STUDIO_DIR}"
+  else
+    log_warning "Android Studio installation may have failed"
+  fi
+}
+
+function configure_android_studio_for_flutter() {
+  log_task "Configuring Android Studio for Flutter detection"
+
+  # Create Android Studio configuration directories
+  local config_dir="${HOME}/.config/Google/AndroidStudio2025.1"
+  local cache_dir="${HOME}/.cache/Google/AndroidStudio2025.1"
+  local data_dir="${HOME}/.local/share/Google/AndroidStudio2025.1"
+
+  mkdir -p "${config_dir}" "${cache_dir}" "${data_dir}"
+
+  # Create build.txt with version information
+  cat > "${config_dir}/build.txt" << 'EOF'
+AI-251.11496.300.2511.12345678
+EOF
+
+  # Create studio.properties
+  cat > "${config_dir}/studio.properties" << EOF
+# Android Studio properties
+idea.config.path=${config_dir}
+idea.system.path=${cache_dir}
+idea.plugins.path=${data_dir}/plugins
+idea.log.path=${cache_dir}/logs
+EOF
+
+  # Ensure studio.sh is executable
+  chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
+
+  log_info "Android Studio configuration completed"
 }
 
 function install_flutter() {
@@ -343,7 +453,10 @@ export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 export PATH="$ANDROID_HOME/emulator:$PATH"
 
-# Android Studio removed - not required for Flutter Android development
+# Android Studio
+export ANDROID_STUDIO_HOME="$HOME/development/android-studio"
+export STUDIO_VM_OPTIONS="$ANDROID_STUDIO_HOME/bin/studio64.vmoptions"
+export PATH="$ANDROID_STUDIO_HOME/bin:$PATH"
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
@@ -416,6 +529,9 @@ install_flutter_dependencies
 # Install Linux toolchain for desktop development
 install_linux_toolchain
 
+# Install Chrome for web development
+install_chrome
+
 # Install Flutter SDK
 if ! is_flutter_installed; then
   install_flutter
@@ -430,8 +546,15 @@ else
   log_info "Android SDK is already installed"
 fi
 
-# Android Studio installation removed - not required for Flutter Android development
-# Flutter can build Android apps using just the Android SDK and command line tools
+# Install Android Studio
+if ! is_android_studio_installed; then
+  install_android_studio
+else
+  log_info "Android Studio is already installed"
+fi
+
+# Configure Android Studio for Flutter detection
+configure_android_studio_for_flutter
 
 # Configure Flutter to use Android SDK
 configure_flutter_android_sdk
