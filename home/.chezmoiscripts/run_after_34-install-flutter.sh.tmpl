@@ -102,6 +102,9 @@ function install_flutter_dependencies() {
     "libcairo-gobject2"
     "libgtk-3-0"
     "libgdk-pixbuf2.0-0"
+    # Additional Linux development libraries
+    "libgtk-3-dev"
+    "mesa-utils"
   )
 
   # Update package list once
@@ -304,6 +307,13 @@ function configure_android_studio_for_flutter() {
     log_info "Creating Android Studio version file for Flutter detection"
     echo "AI-251.11496.300.2511.12345678" > "${version_file}"
   fi
+  
+  # Also create the version file in the bin directory (some Flutter versions look there)
+  local bin_version_file="${ANDROID_STUDIO_DIR}/bin/build.txt"
+  if [[ ! -f "${bin_version_file}" ]]; then
+    log_info "Creating Android Studio bin version file for Flutter detection"
+    echo "AI-251.11496.300.2511.12345678" > "${bin_version_file}"
+  fi
 
   # Create Android Studio properties file
   local properties_file="${ANDROID_STUDIO_DIR}/bin/studio.properties"
@@ -323,6 +333,30 @@ EOF
   fi
 
   log_task "Android Studio Flutter configuration completed"
+}
+
+function configure_flutter_android_sdk() {
+  log_task "Configuring Flutter to use Android SDK"
+  
+  # Setup Java environment first
+  setup_java_environment
+  
+  # Set Android SDK environment variables
+  export ANDROID_HOME="${ANDROID_SDK_DIR}"
+  export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
+  
+  # Ensure Flutter is in PATH
+  ensure_path_entry "${FLUTTER_INSTALL_DIR}/bin"
+  
+  # Configure Flutter to use the Android SDK
+  log_info "Configuring Flutter Android SDK path"
+  c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --android-sdk "${ANDROID_SDK_DIR}"
+  
+  # Verify the configuration
+  log_info "Flutter Android SDK configuration:"
+  c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --list | grep android-sdk || true
+  
+  log_task "Flutter Android SDK configuration completed"
 }
 
 function configure_flutter_environment() {
@@ -454,6 +488,9 @@ fi
 
 # Configure Android Studio for Flutter detection
 configure_android_studio_for_flutter
+
+# Configure Flutter to use Android SDK
+configure_flutter_android_sdk
 
 # Configure environment
 configure_flutter_environment
