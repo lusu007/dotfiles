@@ -211,10 +211,12 @@ function install_android_sdk() {
   # Accept Android SDK licenses
   log_task "Accepting Android SDK licenses"
   # Use yes command to automatically accept all licenses
-  yes | ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses || {
+  if yes | ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses; then
+    log_info "Android SDK licenses accepted successfully"
+  else
     log_warning "Failed to accept all Android SDK licenses automatically"
     log_info "You may need to run 'flutter doctor --android-licenses' manually later"
-  }
+  fi
 
   # Install essential Android SDK components
   log_task "Installing essential Android SDK components"
@@ -381,10 +383,12 @@ function accept_android_licenses() {
 
   # Accept licenses using Flutter doctor
   log_info "Running: flutter doctor --android-licenses"
-  yes | c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses || {
+  if yes | c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses; then
+    log_info "Android licenses accepted via Flutter doctor"
+  else
     log_warning "Failed to accept Android licenses via Flutter doctor"
     log_info "You may need to run 'flutter doctor --android-licenses' manually"
-  }
+  fi
 }
 
 function run_flutter_doctor() {
