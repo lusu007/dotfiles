@@ -9,7 +9,6 @@ true || source ../.chezmoitemplates/scripts-library
 readonly FLUTTER_VERSION="stable"
 readonly FLUTTER_INSTALL_DIR="${HOME}/development/flutter"
 readonly ANDROID_SDK_DIR="${HOME}/Android/Sdk"
-readonly ANDROID_STUDIO_DIR="${HOME}/development/android-studio"
 
 function is_flutter_installed() {
   [[ -d "${FLUTTER_INSTALL_DIR}" ]] && [[ -f "${FLUTTER_INSTALL_DIR}/bin/flutter" ]]
@@ -82,6 +81,7 @@ function install_flutter_dependencies() {
   # Install required packages for Flutter development
   local packages=(
     "curl"
+    "wget"
     "file"
     "git"
     "unzip"
@@ -154,54 +154,43 @@ function install_linux_toolchain() {
 
 
 function is_android_studio_installed() {
-  [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
+  command -v android-studio >/dev/null 2>&1
 }
 
 function install_android_studio() {
-  log_task "Installing Android Studio"
+  log_task "Installing Android Studio via PPA repository"
 
   # Check if Android Studio is already installed
-  if is_android_studio_installed; then
-    log_info "Android Studio is already installed"
+  if command -v android-studio >/dev/null 2>&1; then
+    log_info "Android Studio is already installed via package manager"
     return 0
   fi
 
-  # Create development directory
-  mkdir -p "${HOME}/development"
-
-  # Download Android Studio
-  local android_studio_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2025.1.3.7/android-studio-2025.1.3.7-linux.tar.gz"
-  local android_studio_tar="/tmp/android-studio.tar.gz"
-
-  log_info "Downloading Android Studio"
-  curl -L -o "${android_studio_tar}" "${android_studio_url}"
-
-  # Verify download
-  if [[ ! -s "${android_studio_tar}" ]]; then
-    log_error "Android Studio download failed or file is empty"
+  # Add Android Studio PPA repository
+  log_info "Adding Android Studio PPA repository"
+  if ! sudo add-apt-repository ppa:maarten-fonville/android-studio -y; then
+    log_error "Failed to add Android Studio PPA repository"
     return 1
   fi
 
-  # Extract Android Studio
-  log_info "Extracting Android Studio"
-  tar -xzf "${android_studio_tar}" -C "${HOME}/development"
-
-  # Move to final location
-  if [[ -d "${HOME}/development/android-studio" ]]; then
-    rm -rf "${ANDROID_STUDIO_DIR}"
-    mv "${HOME}/development/android-studio" "${ANDROID_STUDIO_DIR}"
+  # Update package list
+  log_info "Updating package list"
+  if ! sudo apt update; then
+    log_error "Failed to update package list"
+    return 1
   fi
 
-  # Make studio.sh executable
-  chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
-
-  # Clean up downloaded tar
-  rm -f "${android_studio_tar}"
+  # Install Android Studio
+  log_info "Installing Android Studio"
+  if ! sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends android-studio; then
+    log_error "Failed to install Android Studio"
+    return 1
+  fi
 
   # Verify installation
-  if is_android_studio_installed; then
-    log_info "Android Studio installed successfully"
-    log_info "Android Studio location: ${ANDROID_STUDIO_DIR}"
+  if command -v android-studio >/dev/null 2>&1; then
+    log_info "Android Studio installed successfully via package manager"
+    log_info "Android Studio can be launched with: android-studio"
   else
     log_warning "Android Studio installation may have failed"
   fi
@@ -210,30 +199,21 @@ function install_android_studio() {
 function configure_android_studio_for_flutter() {
   log_task "Configuring Android Studio for Flutter detection"
 
-  # Create Android Studio configuration directories
-  local config_dir="${HOME}/.config/Google/AndroidStudio2025.1"
-  local cache_dir="${HOME}/.cache/Google/AndroidStudio2025.1"
-  local data_dir="${HOME}/.local/share/Google/AndroidStudio2025.1"
+  # Check if Android Studio is installed
+  if ! command -v android-studio >/dev/null 2>&1; then
+    log_warning "Android Studio is not installed, skipping configuration"
+    return 0
+  fi
+
+  # Create basic Android Studio configuration directories
+  local config_dir="${HOME}/.config/Google/AndroidStudio"
+  local cache_dir="${HOME}/.cache/Google/AndroidStudio"
+  local data_dir="${HOME}/.local/share/Google/AndroidStudio"
 
   mkdir -p "${config_dir}" "${cache_dir}" "${data_dir}"
 
-  # Create build.txt with version information
-  cat > "${config_dir}/build.txt" << 'EOF'
-AI-251.11496.300.2511.12345678
-EOF
-
-  # Create studio.properties
-  cat > "${config_dir}/studio.properties" << EOF
-# Android Studio properties
-idea.config.path=${config_dir}
-idea.system.path=${cache_dir}
-idea.plugins.path=${data_dir}/plugins
-idea.log.path=${cache_dir}/logs
-EOF
-
-  # Ensure studio.sh is executable
-  chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
-
+  log_info "Android Studio configuration directories created"
+  log_info "Android Studio can be launched with: android-studio"
   log_info "Android Studio configuration completed"
 }
 
@@ -429,10 +409,8 @@ export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 export PATH="$ANDROID_HOME/emulator:$PATH"
 
-# Android Studio
-export ANDROID_STUDIO_HOME="$HOME/development/android-studio"
-export STUDIO_VM_OPTIONS="$ANDROID_STUDIO_HOME/bin/studio64.vmoptions"
-export PATH="$ANDROID_STUDIO_HOME/bin:$PATH"
+# Android Studio (installed via package manager)
+# No additional environment variables needed for package installation
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
