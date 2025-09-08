@@ -211,6 +211,9 @@ function install_android_sdk() {
   ensure_path_entry "${ANDROID_SDK_DIR}/platform-tools"
   ensure_path_entry "${ANDROID_SDK_DIR}/emulator"
 
+  # Export PATH for current session
+  export PATH="${ANDROID_SDK_DIR}/cmdline-tools/latest/bin:${ANDROID_SDK_DIR}/platform-tools:${ANDROID_SDK_DIR}/emulator:${PATH}"
+
   # Accept Android SDK licenses
   log_task "Accepting Android SDK licenses"
   # Use yes command to automatically accept all licenses
@@ -243,6 +246,21 @@ function install_android_sdk() {
 
   # Clean up downloaded zip
   c rm -f "${cmdline_tools_zip}"
+
+  # Verify Android SDK installation
+  log_task "Verifying Android SDK installation"
+  if [[ -f "${ANDROID_SDK_DIR}/platform-tools/adb" ]]; then
+    log_info "Android SDK platform-tools installed successfully"
+    log_info "ADB location: ${ANDROID_SDK_DIR}/platform-tools/adb"
+  else
+    log_warning "Android SDK platform-tools not found. ADB may not be available."
+  fi
+
+  if [[ -f "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]]; then
+    log_info "Android SDK command line tools installed successfully"
+  else
+    log_warning "Android SDK command line tools not found."
+  fi
 
   log_task "Android SDK installation completed"
 }
@@ -307,7 +325,7 @@ function configure_android_studio_for_flutter() {
     log_info "Creating Android Studio version file for Flutter detection"
     echo "AI-251.11496.300.2511.12345678" > "${version_file}"
   fi
-  
+
   # Also create the version file in the bin directory (some Flutter versions look there)
   local bin_version_file="${ANDROID_STUDIO_DIR}/bin/build.txt"
   if [[ ! -f "${bin_version_file}" ]]; then
@@ -337,25 +355,39 @@ EOF
 
 function configure_flutter_android_sdk() {
   log_task "Configuring Flutter to use Android SDK"
-  
+
   # Setup Java environment first
   setup_java_environment
-  
+
   # Set Android SDK environment variables
   export ANDROID_HOME="${ANDROID_SDK_DIR}"
   export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
-  
+
   # Ensure Flutter is in PATH
   ensure_path_entry "${FLUTTER_INSTALL_DIR}/bin"
-  
+
+  # Ensure Android SDK tools are in PATH
+  export PATH="${ANDROID_SDK_DIR}/cmdline-tools/latest/bin:${ANDROID_SDK_DIR}/platform-tools:${ANDROID_SDK_DIR}/emulator:${PATH}"
+
+  # Verify Android SDK is accessible
+  if [[ -f "${ANDROID_SDK_DIR}/platform-tools/adb" ]]; then
+    log_info "Android SDK ADB found at: ${ANDROID_SDK_DIR}/platform-tools/adb"
+  else
+    log_warning "Android SDK ADB not found. SDK may not be properly installed."
+  fi
+
   # Configure Flutter to use the Android SDK
   log_info "Configuring Flutter Android SDK path"
   c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --android-sdk "${ANDROID_SDK_DIR}"
-  
+
   # Verify the configuration
   log_info "Flutter Android SDK configuration:"
   c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --list | grep android-sdk || true
-  
+
+  # Test Flutter doctor for Android toolchain
+  log_info "Testing Flutter Android toolchain detection:"
+  c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses --dry-run 2>&1 | head -10 || true
+
   log_task "Flutter Android SDK configuration completed"
 }
 
