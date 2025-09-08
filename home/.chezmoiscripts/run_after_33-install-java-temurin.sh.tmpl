@@ -48,85 +48,86 @@ function get_latest_lts_temurin() {
 function install_java_temurin() {
   log_task "Installing latest LTS Temurin JDK via SDKMAN!"
 
-  # Run SDKMAN operations in a subshell without set -u to avoid unbound variable errors
-  local java_version
-  java_version=$(
-    set +u
-    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
-      log_error "Failed to initialize SDKMAN!"
-      exit 1
-    }
+  # Initialize SDKMAN! in the main shell context
+  set +u
+  if ! source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
+    log_error "Failed to initialize SDKMAN!"
+    return 1
+  fi
+  set -u
 
-    # Wait a moment for SDKMAN! to be ready
-    sleep 2
+  # Wait a moment for SDKMAN! to be ready
+  sleep 2
 
-    # Get the latest LTS Temurin version
-    local version
-    version=$(get_latest_lts_temurin)
+  # Verify SDKMAN! is working
+  if ! command -v sdk >/dev/null 2>&1; then
+    log_error "SDKMAN! 'sdk' command not found after initialization"
+    return 1
+  fi
 
-    if [[ -z "${version}" ]]; then
-      log_error "Could not determine latest LTS Temurin version"
-      exit 1
-    fi
+  # Get the latest LTS Temurin version
+  local version
+  version=$(get_latest_lts_temurin)
 
-    log_info "Installing Java Temurin version: ${version}"
+  if [[ -z "${version}" ]]; then
+    log_error "Could not determine latest LTS Temurin version"
+    return 1
+  fi
 
-    # Install the latest LTS Temurin JDK with error handling
-    if ! sdk install java "${version}"; then
-      log_error "Failed to install Java ${version}"
-      exit 1
-    fi
+  log_info "Installing Java Temurin version: ${version}"
 
-    # Set it as the default version
-    log_task "Setting Java ${version} as default"
-    if ! sdk default java "${version}"; then
-      log_error "Failed to set Java ${version} as default"
-      exit 1
-    fi
+  # Install the latest LTS Temurin JDK with error handling
+  log_info "Running: sdk install java ${version}"
+  if ! sdk install java "${version}"; then
+    log_error "Failed to install Java ${version}"
+    log_info "SDKMAN! installation failed. This might be due to:"
+    log_info "  - Network connectivity issues"
+    log_info "  - Insufficient disk space"
+    log_info "  - SDKMAN! not properly initialized"
+    log_info "You can try running manually: sdk install java ${version}"
+    return 1
+  fi
 
-    # Return the version for the parent shell
-    echo "${version}"
-  )
+  # Set it as the default version
+  log_task "Setting Java ${version} as default"
+  if ! sdk default java "${version}"; then
+    log_error "Failed to set Java ${version} as default"
+    return 1
+  fi
 
-  if [[ -n "${java_version}" ]]; then
-    # Set up Java environment variables in the current shell
-    log_task "Setting up Java environment variables"
+  # Store the version for environment setup
+  local java_version="${version}"
 
-    # Source SDKMAN to get access to Java
-    if ! source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
-      log_warning "Failed to initialize SDKMAN! for environment setup, but Java is installed"
-      log_info "You may need to restart your shell or run 'source ~/.sdkman/bin/sdkman-init.sh'"
-    fi
+  # Set up Java environment variables in the current shell
+  log_task "Setting up Java environment variables"
 
-    # Set JAVA_HOME to the installed Java version
-    if [[ -d "${HOME}/.sdkman/candidates/java/current" ]]; then
-      export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
-      export PATH="${JAVA_HOME}/bin:${PATH}"
-    else
-      log_warning "Java installation directory not found at ${HOME}/.sdkman/candidates/java/current"
-    fi
+  # Set JAVA_HOME to the installed Java version
+  if [[ -d "${HOME}/.sdkman/candidates/java/current" ]]; then
+    export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+  else
+    log_warning "Java installation directory not found at ${HOME}/.sdkman/candidates/java/current"
+  fi
 
-    # Add Java environment to shell configuration files
-    local shell_configs=("${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile")
+  # Add Java environment to shell configuration files
+  local shell_configs=("${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile")
 
-    for config in "${shell_configs[@]}"; do
-      if [[ -f "${config}" ]]; then
-        # Add Java environment if not already present
-        if ! grep -q "SDKMAN Java" "${config}"; then
-          log_info "Adding Java environment to ${config}"
-          cat >> "${config}" << 'EOF'
+  for config in "${shell_configs[@]}"; do
+    if [[ -f "${config}" ]]; then
+      # Add Java environment if not already present
+      if ! grep -q "SDKMAN Java" "${config}"; then
+        log_info "Adding Java environment to ${config}"
+        cat >> "${config}" << 'EOF'
 
 # SDKMAN Java
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
 export PATH="$JAVA_HOME/bin:$PATH"
 EOF
-        fi
       fi
-    done
+    fi
+  done
 
-    log_info "Java environment configured: JAVA_HOME=${JAVA_HOME}"
-  fi
-
+  log_info "Java environment configured: JAVA_HOME=${JAVA_HOME}"
   log_task "Java Temurin installation completed"
 }
 
