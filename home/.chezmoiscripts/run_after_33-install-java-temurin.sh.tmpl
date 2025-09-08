@@ -24,37 +24,35 @@ function is_lts_temurin_installed() {
 function get_latest_lts_temurin() {
   # Get the latest LTS Temurin version from SDKMAN!
   # This will return something like "17.0.2-tem"
-  # Run in subshell to avoid set -u issues
-  (
-    set +u
-    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || return 1
+  # Note: This function assumes SDKMAN! is already initialized in the calling context
+  
+  # Wait a moment for SDKMAN! to be ready
+  sleep 2
 
-    # Wait a moment for SDKMAN! to be ready
-    sleep 2
+  # Get the list directly (no timeout needed as sdk list is fast)
+  local java_list
+  java_list=$(sdk list java 2>/dev/null) || return 1
 
-    # Get the list directly (no timeout needed as sdk list is fast)
-    local java_list
-    java_list=$(sdk list java 2>/dev/null) || return 1
+  # Check if we got any output
+  if [[ -z "${java_list}" ]]; then
+    return 1
+  fi
 
-    # Check if we got any output
-    if [[ -z "${java_list}" ]]; then
-      return 1
-    fi
-
-    echo "${java_list}" | grep -i temurin | head -1 | awk '{print $NF}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
-  )
+  echo "${java_list}" | grep -i temurin | head -1 | awk '{print $NF}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 function install_java_temurin() {
   log_task "Installing latest LTS Temurin JDK via SDKMAN!"
 
   # Initialize SDKMAN! in the main shell context
+  # Temporarily disable set -u to avoid unbound variable errors with SDKMAN!
   set +u
   if ! source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
     log_error "Failed to initialize SDKMAN!"
+    set -u
     return 1
   fi
-  set -u
+  # Keep set +u for the rest of the function since SDKMAN! may use unbound variables
 
   # Wait a moment for SDKMAN! to be ready
   sleep 2
