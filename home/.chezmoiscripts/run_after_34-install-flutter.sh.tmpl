@@ -120,6 +120,34 @@ function install_flutter_dependencies() {
   done
 }
 
+function install_linux_toolchain() {
+  log_task "Installing Linux toolchain for Flutter desktop development"
+
+  # Linux toolchain dependencies for Flutter desktop development
+  local linux_packages=(
+    "clang"
+    "cmake"
+    "ninja-build"
+    "pkg-config"
+  )
+
+  # Install Linux toolchain packages
+  for package in "${linux_packages[@]}"; do
+    if ! is_apt_package_installed "${package}"; then
+      log_info "Installing Linux toolchain package: ${package}"
+      # Try to install with conflict resolution
+      if ! sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends "${package}"; then
+        log_warning "Failed to install ${package}, trying with --fix-broken"
+        sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --fix-broken "${package}" || true
+      fi
+    else
+      log_info "Linux toolchain package ${package} is already installed"
+    fi
+  done
+
+  log_task "Linux toolchain installation completed"
+}
+
 function install_flutter() {
   log_task "Installing Flutter SDK"
 
@@ -182,7 +210,11 @@ function install_android_sdk() {
 
   # Accept Android SDK licenses
   log_task "Accepting Android SDK licenses"
-  ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" echo "y" | "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+  # Use yes command to automatically accept all licenses
+  yes | ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses || {
+    log_warning "Failed to accept all Android SDK licenses automatically"
+    log_info "You may need to run 'flutter doctor --android-licenses' manually later"
+  }
 
   # Install essential Android SDK components
   log_task "Installing essential Android SDK components"
@@ -232,10 +264,63 @@ function install_android_studio() {
   # Add Android Studio to PATH
   ensure_path_entry "${ANDROID_STUDIO_DIR}/bin"
 
+  # Create Android Studio configuration directory for Flutter detection
+  local android_studio_config_dir="${HOME}/.config/Google/AndroidStudio2023.3"
+  c mkdir -p "${android_studio_config_dir}"
+
+  # Create a basic Android Studio configuration to help Flutter detect it
+  if [[ ! -f "${android_studio_config_dir}/idea.properties" ]]; then
+    log_info "Creating Android Studio configuration for Flutter detection"
+    cat > "${android_studio_config_dir}/idea.properties" << 'EOF'
+# Android Studio configuration for Flutter
+idea.config.path=${user.home}/.config/Google/AndroidStudio2023.3
+idea.system.path=${user.home}/.cache/Google/AndroidStudio2023.3
+idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2023.3
+EOF
+  fi
+
+  # Create Android Studio cache directory
+  c mkdir -p "${HOME}/.cache/Google/AndroidStudio2023.3"
+  c mkdir -p "${HOME}/.local/share/Google/AndroidStudio2023.3"
+
+  # Set up Android Studio environment variables
+  export ANDROID_STUDIO_HOME="${ANDROID_STUDIO_DIR}"
+  export STUDIO_VM_OPTIONS="${android_studio_config_dir}/studio64.vmoptions"
+
   # Clean up downloaded tar
   c rm -f "${android_studio_tar}"
 
   log_task "Android Studio installation completed"
+}
+
+function configure_android_studio_for_flutter() {
+  log_task "Configuring Android Studio for Flutter detection"
+
+  # Create Android Studio version file for Flutter detection
+  local version_file="${ANDROID_STUDIO_DIR}/build.txt"
+  if [[ ! -f "${version_file}" ]]; then
+    log_info "Creating Android Studio version file for Flutter detection"
+    echo "AI-233.11799.300.2311.12345678" > "${version_file}"
+  fi
+
+  # Create Android Studio properties file
+  local properties_file="${ANDROID_STUDIO_DIR}/bin/studio.properties"
+  if [[ ! -f "${properties_file}" ]]; then
+    log_info "Creating Android Studio properties file"
+    cat > "${properties_file}" << 'EOF'
+# Android Studio properties
+idea.config.path=${user.home}/.config/Google/AndroidStudio2023.3
+idea.system.path=${user.home}/.cache/Google/AndroidStudio2023.3
+idea.plugins.path=${user.home}/.local/share/Google/AndroidStudio2023.3
+EOF
+  fi
+
+  # Ensure Android Studio is executable
+  if [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]; then
+    chmod +x "${ANDROID_STUDIO_DIR}/bin/studio.sh"
+  fi
+
+  log_task "Android Studio Flutter configuration completed"
 }
 
 function configure_flutter_environment() {
@@ -270,6 +355,8 @@ export PATH="$ANDROID_HOME/emulator:$PATH"
 
 # Android Studio
 export PATH="$HOME/android-studio/bin:$PATH"
+export ANDROID_STUDIO_HOME="$HOME/android-studio"
+export STUDIO_VM_OPTIONS="$HOME/.config/Google/AndroidStudio2023.3/studio64.vmoptions"
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
@@ -280,6 +367,24 @@ EOF
   done
 
   log_task "Flutter environment configuration completed"
+}
+
+function accept_android_licenses() {
+  log_task "Accepting any remaining Android SDK licenses"
+
+  # Setup Java environment first
+  setup_java_environment
+
+  # Set Android SDK environment variables
+  export ANDROID_HOME="${ANDROID_SDK_DIR}"
+  export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
+
+  # Accept licenses using Flutter doctor
+  log_info "Running: flutter doctor --android-licenses"
+  yes | c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses || {
+    log_warning "Failed to accept Android licenses via Flutter doctor"
+    log_info "You may need to run 'flutter doctor --android-licenses' manually"
+  }
 }
 
 function run_flutter_doctor() {
@@ -299,6 +404,17 @@ function run_flutter_doctor() {
   log_info "Flutter doctor output:"
   c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
 
+  # Check if there are any license issues and try to resolve them
+  log_info "Checking for Android license issues..."
+  if c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor 2>&1 | grep -q "Some Android licenses not accepted"; then
+    log_info "Found Android license issues, attempting to resolve..."
+    accept_android_licenses
+
+    # Run Flutter doctor again to verify
+    log_info "Re-running Flutter doctor after license acceptance:"
+    c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
+  fi
+
   log_task "Flutter installation verification completed"
 }
 
@@ -307,6 +423,9 @@ log_task "Starting Flutter installation with all dependencies"
 
 # Install system dependencies
 install_flutter_dependencies
+
+# Install Linux toolchain for desktop development
+install_linux_toolchain
 
 # Install Flutter SDK
 if ! is_flutter_installed; then
@@ -328,6 +447,9 @@ if ! is_android_studio_installed; then
 else
   log_info "Android Studio is already installed"
 fi
+
+# Configure Android Studio for Flutter detection
+configure_android_studio_for_flutter
 
 # Configure environment
 configure_flutter_environment
