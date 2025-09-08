@@ -18,10 +18,6 @@ function is_android_sdk_installed() {
   [[ -d "${ANDROID_SDK_DIR}" ]] && [[ -f "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]]
 }
 
-# Android Studio is not required for Flutter Android development
-# function is_android_studio_installed() {
-#   [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
-# }
 
 function setup_java_environment() {
   log_task "Setting up Java environment for Android SDK"
@@ -153,69 +149,7 @@ function install_linux_toolchain() {
 }
 
 
-function is_android_studio_installed() {
-  command -v android-studio >/dev/null 2>&1
-}
 
-function install_android_studio() {
-  log_task "Installing Android Studio via PPA repository"
-
-  # Check if Android Studio is already installed
-  if command -v android-studio >/dev/null 2>&1; then
-    log_info "Android Studio is already installed via package manager"
-    return 0
-  fi
-
-  # Add Android Studio PPA repository
-  log_info "Adding Android Studio PPA repository"
-  if ! sudo add-apt-repository ppa:maarten-fonville/android-studio -y; then
-    log_error "Failed to add Android Studio PPA repository"
-    return 1
-  fi
-
-  # Update package list
-  log_info "Updating package list"
-  if ! sudo apt update; then
-    log_error "Failed to update package list"
-    return 1
-  fi
-
-  # Install Android Studio
-  log_info "Installing Android Studio"
-  if ! sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends android-studio; then
-    log_error "Failed to install Android Studio"
-    return 1
-  fi
-
-  # Verify installation
-  if command -v android-studio >/dev/null 2>&1; then
-    log_info "Android Studio installed successfully via package manager"
-    log_info "Android Studio can be launched with: android-studio"
-  else
-    log_warning "Android Studio installation may have failed"
-  fi
-}
-
-function configure_android_studio_for_flutter() {
-  log_task "Configuring Android Studio for Flutter detection"
-
-  # Check if Android Studio is installed
-  if ! command -v android-studio >/dev/null 2>&1; then
-    log_warning "Android Studio is not installed, skipping configuration"
-    return 0
-  fi
-
-  # Create basic Android Studio configuration directories
-  local config_dir="${HOME}/.config/Google/AndroidStudio"
-  local cache_dir="${HOME}/.cache/Google/AndroidStudio"
-  local data_dir="${HOME}/.local/share/Google/AndroidStudio"
-
-  mkdir -p "${config_dir}" "${cache_dir}" "${data_dir}"
-
-  log_info "Android Studio configuration directories created"
-  log_info "Android Studio can be launched with: android-studio"
-  log_info "Android Studio configuration completed"
-}
 
 function install_flutter() {
   log_task "Installing Flutter SDK"
@@ -331,15 +265,6 @@ function install_android_sdk() {
   log_task "Android SDK installation completed"
 }
 
-# Android Studio installation removed - not required for Flutter Android development
-# function install_android_studio() {
-#   # ... Android Studio installation code removed
-# }
-
-# Android Studio configuration removed - not required for Flutter Android development
-# function configure_android_studio_for_flutter() {
-#   # ... Android Studio configuration code removed
-# }
 
 function configure_flutter_android_sdk() {
   log_task "Configuring Flutter to use Android SDK"
@@ -409,8 +334,6 @@ export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 export PATH="$ANDROID_HOME/emulator:$PATH"
 
-# Android Studio (installed via package manager)
-# No additional environment variables needed for package installation
 
 # Java (SDKMAN)
 export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
@@ -497,15 +420,6 @@ else
   log_info "Android SDK is already installed"
 fi
 
-# Install Android Studio
-if ! is_android_studio_installed; then
-  install_android_studio
-else
-  log_info "Android Studio is already installed"
-fi
-
-# Configure Android Studio for Flutter detection
-configure_android_studio_for_flutter
 
 # Configure Flutter to use Android SDK
 configure_flutter_android_sdk
