@@ -93,14 +93,18 @@ function install_java_temurin() {
     log_task "Setting up Java environment variables"
 
     # Source SDKMAN to get access to Java
-    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
-      log_error "Failed to initialize SDKMAN! for environment setup"
-      exit 1
-    }
+    if ! source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
+      log_warning "Failed to initialize SDKMAN! for environment setup, but Java is installed"
+      log_info "You may need to restart your shell or run 'source ~/.sdkman/bin/sdkman-init.sh'"
+    fi
 
     # Set JAVA_HOME to the installed Java version
-    export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
-    export PATH="${JAVA_HOME}/bin:${PATH}"
+    if [[ -d "${HOME}/.sdkman/candidates/java/current" ]]; then
+      export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+    else
+      log_warning "Java installation directory not found at ${HOME}/.sdkman/candidates/java/current"
+    fi
 
     # Add Java environment to shell configuration files
     local shell_configs=("${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile")
