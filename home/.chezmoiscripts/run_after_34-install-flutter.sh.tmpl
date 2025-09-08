@@ -37,11 +37,11 @@ function setup_java_environment() {
     log_info "Initializing SDKMAN to find Java"
     # Temporarily disable set -u for SDKMAN initialization
     set +u
-    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
+    if ! source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null; then
       log_error "Failed to initialize SDKMAN!"
       set -u
       return 1
-    }
+    fi
     set -u
 
     # Set JAVA_HOME to SDKMAN's current Java
