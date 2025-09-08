@@ -155,17 +155,17 @@ function install_flutter() {
   log_task "Installing Flutter SDK"
 
   # Create development directory
-  c mkdir -p "${HOME}/development"
+  mkdir -p "${HOME}/development"
 
   # Download and install Flutter
   if [[ ! -d "${FLUTTER_INSTALL_DIR}" ]]; then
     log_info "Downloading Flutter SDK"
-    c git clone https://github.com/flutter/flutter.git -b "${FLUTTER_VERSION}" "${FLUTTER_INSTALL_DIR}"
+    git clone https://github.com/flutter/flutter.git -b "${FLUTTER_VERSION}" "${FLUTTER_INSTALL_DIR}"
   else
     log_info "Flutter directory exists, updating to latest ${FLUTTER_VERSION}"
-    c git -C "${FLUTTER_INSTALL_DIR}" fetch origin
-    c git -C "${FLUTTER_INSTALL_DIR}" checkout "${FLUTTER_VERSION}"
-    c git -C "${FLUTTER_INSTALL_DIR}" pull origin "${FLUTTER_VERSION}"
+    git -C "${FLUTTER_INSTALL_DIR}" fetch origin
+    git -C "${FLUTTER_INSTALL_DIR}" checkout "${FLUTTER_VERSION}"
+    git -C "${FLUTTER_INSTALL_DIR}" pull origin "${FLUTTER_VERSION}"
   fi
 
   # Add Flutter to PATH for current session
@@ -173,7 +173,7 @@ function install_flutter() {
 
   # Precache Flutter dependencies
   log_task "Precaching Flutter dependencies"
-  c "${FLUTTER_INSTALL_DIR}/bin/flutter" precache
+  "${FLUTTER_INSTALL_DIR}/bin/flutter" precache
 
   log_task "Flutter SDK installation completed"
 }
@@ -188,7 +188,7 @@ function install_android_sdk() {
   fi
 
   # Create Android directory
-  c mkdir -p "${ANDROID_SDK_DIR}"
+  mkdir -p "${ANDROID_SDK_DIR}"
 
   # Download Android Command Line Tools
   local cmdline_tools_url="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
@@ -196,14 +196,14 @@ function install_android_sdk() {
 
   if [[ ! -f "${cmdline_tools_zip}" ]]; then
     log_info "Downloading Android Command Line Tools"
-    c curl -L -o "${cmdline_tools_zip}" "${cmdline_tools_url}"
+    curl -L -o "${cmdline_tools_zip}" "${cmdline_tools_url}"
   fi
 
   # Extract and setup command line tools
   if [[ ! -d "${ANDROID_SDK_DIR}/cmdline-tools" ]]; then
     log_info "Extracting Android Command Line Tools"
-    c unzip -q "${cmdline_tools_zip}" -d "${ANDROID_SDK_DIR}/cmdline-tools"
-    c mv "${ANDROID_SDK_DIR}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_DIR}/cmdline-tools/latest"
+    unzip -q "${cmdline_tools_zip}" -d "${ANDROID_SDK_DIR}/cmdline-tools"
+    mv "${ANDROID_SDK_DIR}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_DIR}/cmdline-tools/latest"
   fi
 
   # Add Android SDK to PATH
@@ -241,11 +241,11 @@ function install_android_sdk() {
 
   for component in "${sdk_components[@]}"; do
     log_info "Installing Android SDK component: ${component}"
-    ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" c "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" "${component}"
+    ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" "${component}"
   done
 
   # Clean up downloaded zip
-  c rm -f "${cmdline_tools_zip}"
+  rm -f "${cmdline_tools_zip}"
 
   # Verify Android SDK installation
   log_task "Verifying Android SDK installation"
@@ -368,7 +368,7 @@ function accept_android_licenses() {
 
   # Accept licenses using Flutter doctor
   log_info "Running: flutter doctor --android-licenses"
-  if yes | c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses; then
+  if yes | "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses; then
     log_info "Android licenses accepted via Flutter doctor"
   else
     log_warning "Failed to accept Android licenses via Flutter doctor"
@@ -391,17 +391,17 @@ function run_flutter_doctor() {
 
   # Run Flutter doctor
   log_info "Flutter doctor output:"
-  c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
+  "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
 
   # Check if there are any license issues and try to resolve them
   log_info "Checking for Android license issues..."
-  if c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor 2>&1 | grep -q "Some Android licenses not accepted"; then
+  if "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor 2>&1 | grep -q "Some Android licenses not accepted"; then
     log_info "Found Android license issues, attempting to resolve..."
     accept_android_licenses
 
     # Run Flutter doctor again to verify
     log_info "Re-running Flutter doctor after license acceptance:"
-    c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
+    "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor -v
   fi
 
   log_task "Flutter installation verification completed"
