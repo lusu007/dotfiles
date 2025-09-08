@@ -378,15 +378,15 @@ function configure_flutter_android_sdk() {
 
   # Configure Flutter to use the Android SDK
   log_info "Configuring Flutter Android SDK path"
-  c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --android-sdk "${ANDROID_SDK_DIR}"
+  "${FLUTTER_INSTALL_DIR}/bin/flutter" config --android-sdk "${ANDROID_SDK_DIR}"
 
   # Verify the configuration
   log_info "Flutter Android SDK configuration:"
-  c "${FLUTTER_INSTALL_DIR}/bin/flutter" config --list | grep android-sdk || true
+  "${FLUTTER_INSTALL_DIR}/bin/flutter" config --list | grep android-sdk || true
 
   # Test Flutter doctor for Android toolchain
   log_info "Testing Flutter Android toolchain detection:"
-  c "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses --dry-run 2>&1 | head -10 || true
+  "${FLUTTER_INSTALL_DIR}/bin/flutter" doctor --android-licenses --dry-run 2>&1 | head -10 || true
 
   log_task "Flutter Android SDK configuration completed"
 }
