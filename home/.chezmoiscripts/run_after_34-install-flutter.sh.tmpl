@@ -23,6 +23,54 @@ function is_android_studio_installed() {
   [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
 }
 
+function setup_java_environment() {
+  log_task "Setting up Java environment for Android SDK"
+
+  # Check if JAVA_HOME is already set
+  if [[ -n "${JAVA_HOME}" ]] && [[ -f "${JAVA_HOME}/bin/java" ]]; then
+    log_info "JAVA_HOME is already set: ${JAVA_HOME}"
+    return 0
+  fi
+
+  # Try to find Java via SDKMAN
+  if [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
+    log_info "Initializing SDKMAN to find Java"
+    source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
+      log_error "Failed to initialize SDKMAN!"
+      return 1
+    }
+
+    # Set JAVA_HOME to SDKMAN's current Java
+    if [[ -d "${HOME}/.sdkman/candidates/java/current" ]]; then
+      export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      log_info "Java found via SDKMAN: JAVA_HOME=${JAVA_HOME}"
+      return 0
+    fi
+  fi
+
+  # Try to find Java in system PATH
+  local java_path
+  java_path=""
+  java_path=$(command -v java 2>/dev/null)
+  if [[ -n "${java_path}" ]]; then
+    # Get the directory containing java and set JAVA_HOME
+    local java_dir
+    java_dir=""
+    java_dir=$(dirname "${java_path}")
+    local java_home_dir
+    java_home_dir=""
+    java_home_dir=$(dirname "${java_dir}")
+    export JAVA_HOME="${java_home_dir}"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+    log_info "Java found in system PATH: JAVA_HOME=${JAVA_HOME}"
+    return 0
+  fi
+
+  log_error "No Java installation found. Please install Java first."
+  return 1
+}
+
 function install_flutter_dependencies() {
   log_task "Installing Flutter system dependencies"
 
@@ -98,6 +146,12 @@ function install_flutter() {
 function install_android_sdk() {
   log_task "Installing Android SDK Command Line Tools"
 
+  # Setup Java environment first
+  if ! setup_java_environment; then
+    log_error "Failed to setup Java environment. Cannot proceed with Android SDK installation."
+    return 1
+  fi
+
   # Create Android directory
   c mkdir -p "${ANDROID_SDK_DIR}"
 
@@ -124,7 +178,7 @@ function install_android_sdk() {
 
   # Accept Android SDK licenses
   log_task "Accepting Android SDK licenses"
-  ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" echo "y" | "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+  ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" echo "y" | "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
   # Install essential Android SDK components
   log_task "Installing essential Android SDK components"
@@ -143,7 +197,7 @@ function install_android_sdk() {
 
   for component in "${sdk_components[@]}"; do
     log_info "Installing Android SDK component: ${component}"
-    ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" c "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" "${component}"
+    ANDROID_HOME="${ANDROID_SDK_DIR}" ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}" JAVA_HOME="${JAVA_HOME}" c "${ANDROID_SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" "${component}"
   done
 
   # Clean up downloaded zip
@@ -183,6 +237,9 @@ function install_android_studio() {
 function configure_flutter_environment() {
   log_task "Configuring Flutter environment"
 
+  # Setup Java environment first
+  setup_java_environment
+
   # Set Android SDK environment variables
   export ANDROID_HOME="${ANDROID_SDK_DIR}"
   export ANDROID_SDK_ROOT="${ANDROID_SDK_DIR}"
@@ -209,6 +266,10 @@ export PATH="$ANDROID_HOME/emulator:$PATH"
 
 # Android Studio
 export PATH="$HOME/android-studio/bin:$PATH"
+
+# Java (SDKMAN)
+export JAVA_HOME="$HOME/.sdkman/candidates/java/current"
+export PATH="$JAVA_HOME/bin:$PATH"
 EOF
       fi
     fi
@@ -219,6 +280,9 @@ EOF
 
 function run_flutter_doctor() {
   log_task "Running Flutter doctor to verify installation"
+
+  # Setup Java environment first
+  setup_java_environment
 
   # Ensure Flutter is in PATH
   ensure_path_entry "${FLUTTER_INSTALL_DIR}/bin"

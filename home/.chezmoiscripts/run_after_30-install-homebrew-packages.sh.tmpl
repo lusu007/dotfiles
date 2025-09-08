@@ -37,7 +37,7 @@ if ! brew --version &>/dev/null; then
   else
     homebrew_prefix="${home_homebrew_prefix}"
     log_info "Installing to '${homebrew_prefix}' due to lack of permissions on '/home/linuxbrew'"
-    c git clone https://github.com/Homebrew/brew "${homebrew_prefix}/Homebrew"
+    c git -c url."https://github.com/".insteadOf="git@github.com:" clone https://github.com/Homebrew/brew "${homebrew_prefix}/Homebrew"
     c mkdir -p "${homebrew_prefix}/bin"
     c ln -sfn "../Homebrew/bin/brew" "${homebrew_prefix}/bin"
     c brew update --force --quiet
