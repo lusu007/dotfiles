@@ -152,59 +152,6 @@ function install_linux_toolchain() {
   log_task "Linux toolchain installation completed"
 }
 
-function install_chrome() {
-  log_task "Installing Google Chrome for Flutter web development"
-
-  # Check if Chrome is already installed
-  if command -v google-chrome >/dev/null 2>&1; then
-    log_info "Google Chrome is already installed"
-    return 0
-  fi
-
-  # Setup Google Chrome repository
-  log_info "Setting up Google Chrome repository"
-
-  # Remove any existing Google Chrome repository files to start fresh
-  sudo rm -f /etc/apt/sources.list.d/google-chrome.list
-  sudo rm -f /usr/share/keyrings/google.asc
-  sudo rm -f /usr/share/keyrings/google-chrome-keyring.gpg
-
-  # Download and add Google Chrome GPG key using the updated method
-  log_info "Downloading Google Chrome GPG key"
-  if ! curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg; then
-    log_error "Failed to download and add Google Chrome GPG key"
-    return 1
-  fi
-
-  # Set proper permissions on the keyring file
-  sudo chmod 644 /usr/share/keyrings/google-chrome-keyring.gpg
-
-  # Add Google Chrome repository with the correct keyring reference
-  log_info "Adding Google Chrome repository"
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
-
-  # Update package list
-  log_info "Updating package list"
-  if ! sudo apt update; then
-    log_error "Failed to update package list after adding Google Chrome repository"
-    return 1
-  fi
-
-  # Install Google Chrome
-  log_info "Installing Google Chrome"
-  if ! sudo env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends google-chrome-stable; then
-    log_error "Failed to install Google Chrome"
-    return 1
-  fi
-
-  # Verify installation
-  if command -v google-chrome >/dev/null 2>&1; then
-    log_info "Google Chrome installed successfully"
-    log_info "Chrome version: $(google-chrome --version)"
-  else
-    log_warning "Google Chrome installation may have failed"
-  fi
-}
 
 function is_android_studio_installed() {
   [[ -d "${ANDROID_STUDIO_DIR}" ]] && [[ -f "${ANDROID_STUDIO_DIR}/bin/studio.sh" ]]
@@ -557,9 +504,6 @@ install_flutter_dependencies
 
 # Install Linux toolchain for desktop development
 install_linux_toolchain
-
-# Install Chrome for web development
-install_chrome
 
 # Install Flutter SDK
 if ! is_flutter_installed; then
