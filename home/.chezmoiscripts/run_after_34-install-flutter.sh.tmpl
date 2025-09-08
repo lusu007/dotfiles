@@ -27,7 +27,7 @@ function setup_java_environment() {
   log_task "Setting up Java environment for Android SDK"
 
   # Check if JAVA_HOME is already set
-  if [[ -n "${JAVA_HOME}" ]] && [[ -f "${JAVA_HOME}/bin/java" ]]; then
+  if [[ -n "${JAVA_HOME:-}" ]] && [[ -f "${JAVA_HOME}/bin/java" ]]; then
     log_info "JAVA_HOME is already set: ${JAVA_HOME}"
     return 0
   fi
@@ -35,10 +35,14 @@ function setup_java_environment() {
   # Try to find Java via SDKMAN
   if [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
     log_info "Initializing SDKMAN to find Java"
+    # Temporarily disable set -u for SDKMAN initialization
+    set +u
     source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null || {
       log_error "Failed to initialize SDKMAN!"
+      set -u
       return 1
     }
+    set -u
 
     # Set JAVA_HOME to SDKMAN's current Java
     if [[ -d "${HOME}/.sdkman/candidates/java/current" ]]; then
