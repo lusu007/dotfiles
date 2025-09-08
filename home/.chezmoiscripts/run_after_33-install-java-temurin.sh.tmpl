@@ -93,9 +93,6 @@ function install_java_temurin() {
     return 1
   fi
 
-  # Store the version for environment setup
-  local java_version="${version}"
-
   # Set up Java environment variables in the current shell
   log_task "Setting up Java environment variables"
 
@@ -139,9 +136,15 @@ if [[ -f "${HOME}/.sdkman/bin/sdkman-init.sh" ]]; then
 
     if [[ -n "${latest_version}" ]]; then
       if ! is_lts_temurin_installed; then
+        log_info "Installing Java Temurin ${latest_version} via SDKMAN!"
         install_java_temurin
       else
         log_info "Latest LTS Temurin Java (${latest_version}) is already installed via SDKMAN!"
+        # Still set up environment variables even if Java is already installed
+        log_task "Setting up Java environment variables for existing installation"
+        export JAVA_HOME="${HOME}/.sdkman/candidates/java/current"
+        export PATH="${JAVA_HOME}/bin:${PATH}"
+        log_info "Java environment configured: JAVA_HOME=${JAVA_HOME}"
       fi
     else
       log_warning "Could not determine latest LTS Temurin version. Skipping Java installation."

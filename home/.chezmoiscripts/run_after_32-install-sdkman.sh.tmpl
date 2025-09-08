@@ -13,6 +13,7 @@ function is_sdkman_installed() {
       set +u
       source "${HOME}/.sdkman/bin/sdkman-init.sh" 2>/dev/null && type sdk >/dev/null 2>&1
     )
+    return $?
   else
     return 1
   fi
@@ -26,10 +27,10 @@ function install_sdkman() {
   curl -s "https://get.sdkman.io" | bash
 
   # Source SDKMAN! to make it available in the current session
-  # shellcheck source=~/.sdkman/bin/sdkman-init.sh
   # Run in subshell to avoid set -u issues
   (
     set +u
+    # shellcheck disable=SC1091
     source "${HOME}/.sdkman/bin/sdkman-init.sh"
   )
 

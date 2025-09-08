@@ -161,6 +161,21 @@ function install_chrome() {
     return 0
   fi
 
+  # Setup Google Chrome repository
+  log_info "Setting up Google Chrome repository"
+
+  # Download and add Google Chrome GPG key
+  if [[ ! -f /usr/share/keyrings/google.asc ]]; then
+    log_info "Downloading Google Chrome GPG key"
+    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google.asc
+  fi
+
+  # Add Google Chrome repository
+  if [[ ! -f /etc/apt/sources.list.d/google-chrome.list ]]; then
+    log_info "Adding Google Chrome repository"
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google.asc] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
+  fi
+
   # Update package list
   sudo apt update
 
