@@ -107,20 +107,15 @@ function configure_git_gpg() {
   log_info "Git configured for GPG signing with key ${key_id}"
 }
 
-function display_public_key() {
+function show_github_instructions() {
   local key_id="$1"
 
-  log_task "Displaying GPG public key for GitHub"
+  log_task "GPG key setup complete"
   echo ""
-  log_manual_action "Copy the following GPG public key and add it to your GitHub account:"
-  echo ""
-  echo "1. Go to GitHub.com → Settings → SSH and GPG keys"
-  echo "2. Click 'New GPG key'"
-  echo "3. Paste the key below:"
-  echo ""
-  echo "--- START GPG PUBLIC KEY ---"
-  gpg --armor --export "${key_id}"
-  echo "--- END GPG PUBLIC KEY ---"
+  log_manual_action "To add your GPG key to GitHub:"
+  echo "1. Run: gpg --armor --export ${key_id} | pbcopy (macOS) or gpg --armor --export ${key_id} | xclip -selection clipboard (Linux)"
+  echo "2. Go to https://github.com/settings/keys"
+  echo "3. Click 'New GPG key' and paste the key"
   echo ""
 }
 
@@ -238,12 +233,12 @@ function setup_gpg_signing() {
   # Configure git for GPG signing
   configure_git_gpg "${key_id}" "${email:-}"
 
-  # Display public key for GitHub
-  display_public_key "${key_id}"
+  # Show GitHub instructions
+  show_github_instructions "${key_id}"
 
   log_info "GPG signing setup completed!"
   log_manual_action "Next steps:"
-  echo "1. Add the GPG public key to your GitHub account (see above)"
+  echo "1. Add your GPG key to GitHub (see instructions above)"
   echo "2. Test your setup by making a commit in any git repository"
   echo "3. Verify the commit is signed by checking: git log --show-signature"
 }
