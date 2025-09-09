@@ -96,7 +96,7 @@ function generate_public_key() {
   fi
 }
 
-function display_public_key() {
+function show_ssh_instructions() {
   local key_path="$1"
   local public_key_path="${key_path}.pub"
 
@@ -109,23 +109,13 @@ function display_public_key() {
     fi
   fi
 
-  log_task "Displaying SSH public key for GitHub/GitLab"
+  log_task "SSH key setup complete"
   echo ""
-  log_manual_action "Copy the following SSH public key and add it to your GitHub/GitLab account:"
-  echo ""
-  echo "GitHub:"
-  echo "1. Go to GitHub.com → Settings → SSH and GPG keys"
-  echo "2. Click 'New SSH key'"
-  echo "3. Paste the key below:"
-  echo ""
-  echo "GitLab:"
-  echo "1. Go to GitLab.com → Preferences → SSH Keys"
-  echo "2. Click 'Add new key'"
-  echo "3. Paste the key below:"
-  echo ""
-  echo "--- START SSH PUBLIC KEY ---"
-  cat "${public_key_path}"
-  echo "--- END SSH PUBLIC KEY ---"
+  log_manual_action "To add your SSH key to GitHub/GitLab:"
+  echo "1. Run: cat ${public_key_path} | pbcopy (macOS) or cat ${public_key_path} | xclip -selection clipboard (Linux)"
+  echo "2. GitHub: Go to https://github.com/settings/keys → 'New SSH key'"
+  echo "3. GitLab: Go to https://gitlab.com/-/profile/keys → 'Add new key'"
+  echo "4. Paste the key and save"
   echo ""
 }
 
@@ -176,25 +166,6 @@ EOF
   fi
 }
 
-function test_ssh_connection() {
-  log_task "Testing SSH connection to GitHub"
-
-  if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
-    log_info "SSH connection to GitHub successful"
-  else
-    log_warning "SSH connection to GitHub failed or not configured"
-    echo "This is normal if you haven't added the public key to GitHub yet."
-  fi
-
-  log_task "Testing SSH connection to GitLab"
-
-  if ssh -T git@gitlab.com 2>&1 | grep -q "successfully authenticated"; then
-    log_info "SSH connection to GitLab successful"
-  else
-    log_warning "SSH connection to GitLab failed or not configured"
-    echo "This is normal if you haven't added the public key to GitLab yet."
-  fi
-}
 
 function update_chezmoi_data() {
   local key="$1"
@@ -290,15 +261,12 @@ function setup_ssh_key() {
   # Configure SSH config
   configure_ssh_config "${key_name}"
 
-  # Display public key for GitHub/GitLab
-  display_public_key "${key_path}"
-
-  # Test SSH connection
-  test_ssh_connection
+  # Show SSH instructions
+  show_ssh_instructions "${key_path}"
 
   log_info "SSH key setup completed!"
   log_manual_action "Next steps:"
-  echo "1. Add the SSH public key to your GitHub/GitLab account (see above)"
+  echo "1. Add your SSH key to GitHub/GitLab (see instructions above)"
   echo "2. Test your setup by cloning a repository: git clone git@github.com:username/repo.git"
   echo "3. Verify SSH connection: ssh -T git@github.com"
 }
