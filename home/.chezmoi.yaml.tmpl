@@ -79,17 +79,18 @@
 {{- end -}}
 
 {{- $setup_gpg := false -}}
-{{- if hasKey . "gpg_key_id" -}}
-{{-   $gpg_key_id = .gpg_key_id -}} should be
+{{- $gpg_cert_path := "" -}}
+{{- if hasKey . "gpg_cert_path" -}}
+{{-   $gpg_cert_path = .gpg_cert_path -}}
 {{- end -}}
 {{- if $interactive -}}
 {{-   $question := "❔ Do you want to set up GPG signing for git commits? (optional)" -}}
 {{-   $setup_gpg = promptBool $question false -}}
 {{-   if $setup_gpg -}}
 {{-     writeToStdout "💡 GPG signing will be configured automatically during installation\n" -}}
-{{-     $gpg_key_id = promptString "❔ Enter your GPG key ID (8+ hex characters, or leave empty to skip)" "" -}}
-{{-     if $gpg_key_id -}}
-{{-       writeToStdout (printf "✅ GPG key ID set as '%s' - will be configured automatically\n" $gpg_key_id) -}}
+{{-     $gpg_cert_path = promptString "❔ Enter the path to your GPG certificate file (or leave empty to skip)" "" -}}
+{{-     if $gpg_cert_path -}}
+{{-       writeToStdout (printf "✅ GPG certificate path set as '%s' - will be configured automatically\n" $gpg_cert_path) -}}
 {{-     else -}}
 {{-       writeToStdout "✅ GPG signing skipped\n" -}}
 {{-     end -}}
@@ -99,17 +100,18 @@
 {{- end -}}
 
 {{- $setup_ssh := false -}}
-{{- if hasKey . "ssh_key_name" -}}
-{{-   $ssh_key_name = .ssh_key_name -}}
+{{- $ssh_cert_path := "" -}}
+{{- if hasKey . "ssh_cert_path" -}}
+{{-   $ssh_cert_path = .ssh_cert_path -}}
 {{- end -}}
 {{- if $interactive -}}
 {{-   $question := "❔ Do you want to set up SSH keys for GitHub/GitLab? (optional)" -}}
 {{-   $setup_ssh = promptBool $question false -}}
 {{-   if $setup_ssh -}}
 {{-     writeToStdout "💡 SSH keys will be configured automatically during installation\n" -}}
-{{-     $ssh_key_name = promptString "❔ Enter your SSH key name (e.g., id_ed25519, or leave empty to skip)" "" -}}
-{{-     if $ssh_key_name -}}
-{{-       writeToStdout (printf "✅ SSH key name set as '%s' - will be configured automatically\n" $ssh_key_name) -}}
+{{-     $ssh_cert_path = promptString "❔ Enter the path to your SSH certificate file (or leave empty to skip)" "" -}}
+{{-     if $ssh_cert_path -}}
+{{-       writeToStdout (printf "✅ SSH certificate path set as '%s' - will be configured automatically\n" $ssh_cert_path) -}}
 {{-     else -}}
 {{-       writeToStdout "✅ SSH setup skipped\n" -}}
 {{-     end -}}
@@ -151,8 +153,8 @@ data:
 
   name: "{{ $name }}"
   email: "{{ $email }}"
-  gpg_key_id: "{{ $gpg_key_id }}"
-  ssh_key_name: "{{ $ssh_key_name }}"
+  gpg_cert_path: "{{ $gpg_cert_path }}"
+  ssh_cert_path: "{{ $ssh_cert_path }}"
 
   editor: "code --wait"
 
