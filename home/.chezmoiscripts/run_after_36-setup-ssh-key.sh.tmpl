@@ -183,10 +183,12 @@ function update_chezmoi_data() {
 
   log_task "Updating chezmoi data: ${key} = ${value}"
 
-  # Check if the data file exists
+  # Create the data file if it doesn't exist
   if [[ ! -f "${data_file}" ]]; then
-    log_error "Chezmoi data file not found at: ${data_file}"
-    return 1
+    log_task "Creating chezmoi data file at: ${data_file}"
+    mkdir -p "$(dirname "${data_file}")"
+    echo "# Chezmoi data file" > "${data_file}"
+    echo "# This file stores dynamic data that can be used in templates" >> "${data_file}"
   fi
 
   # Update the value in the data file

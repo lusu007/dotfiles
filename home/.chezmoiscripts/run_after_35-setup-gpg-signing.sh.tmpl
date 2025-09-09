@@ -127,27 +127,28 @@ function display_public_key() {
 function update_chezmoi_data() {
   local key="$1"
   local value="$2"
-  local config_file="${HOME}/.config/chezmoi/chezmoi.yaml"
+  local data_file="${HOME}/.local/share/chezmoi/.chezmoidata.yaml"
 
   log_task "Updating chezmoi data: ${key} = ${value}"
 
-  # Check if the config file exists
-  if [[ ! -f "${config_file}" ]]; then
-    log_error "Chezmoi config file not found at: ${config_file}"
-    return 1
+  # Create the data file if it doesn't exist
+  if [[ ! -f "${data_file}" ]]; then
+    log_task "Creating chezmoi data file at: ${data_file}"
+    mkdir -p "$(dirname "${data_file}")"
+    echo "# Chezmoi data file" > "${data_file}"
+    echo "# This file stores dynamic data that can be used in templates" >> "${data_file}"
   fi
 
-  # Update the value in the config file under the data section
+  # Update the value in the data file
   if command -v yq >/dev/null 2>&1; then
     # Use yq if available (more reliable for YAML manipulation)
-    yq eval ".data.${key} = \"${value}\"" -i "${config_file}"
+    yq eval ".${key} = \"${value}\"" -i "${data_file}"
   else
     # Fallback to sed (less reliable but works for simple cases)
-    if grep -q "^  ${key}:" "${config_file}"; then
-      sed -i "s/^  ${key}:.*/  ${key}: \"${value}\"/" "${config_file}"
+    if grep -q "^${key}:" "${data_file}"; then
+      sed -i "s/^${key}:.*/${key}: \"${value}\"/" "${data_file}"
     else
-      # Find the data section and add the key after it
-      sed -i "/^data:/a\\  ${key}: \"${value}\"" "${config_file}"
+      echo "${key}: \"${value}\"" >> "${data_file}"
     fi
   fi
 
