@@ -14,6 +14,8 @@ terminalFont:
 
 # GPG configuration
 gpg_key_id: ""  # Set this to your GPG key ID (e.g., "ABCD1234567890AB")
+gpg_cert_path: "/mnt/c/Users/lukas/OneDrive/Dokumente/10 - Privat/40 - Development/Keys/Git GPG/private.gpg"
 
 # SSH configuration
 ssh_key_name: ""  # Set this to your SSH key name (e.g., "id_ed25519")
+ssh_cert_path: "/mnt/c/Users/lukas/OneDrive/Dokumente/10 - Privat/40 - Development/Keys/SSH/id_ed25519"

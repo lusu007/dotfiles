@@ -135,7 +135,8 @@ function setup_gpg_signing() {
   fi
 
   # Check if we have a GPG certificate path configured
-  if [[ -z "${gpg_cert_path:-}" ]]; then
+  local gpg_cert_path="{{ .gpg_cert_path }}"
+  if [[ -z "${gpg_cert_path}" || "${gpg_cert_path}" == "" ]]; then
     log_info "No GPG certificate path configured. Skipping GPG setup."
     return 0
   fi
@@ -181,7 +182,8 @@ function setup_gpg_signing() {
 }
 
 # Only run if we have a GPG certificate path configured
-if [[ -n "${gpg_cert_path:-}" ]]; then
+gpg_cert_path="{{ .gpg_cert_path }}"
+if [[ -n "${gpg_cert_path}" && "${gpg_cert_path}" != "" ]]; then
   setup_gpg_signing
 else
   log_info "No GPG certificate path configured. Skipping GPG signing setup."

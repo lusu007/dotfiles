@@ -176,6 +176,35 @@ function test_ssh_connection() {
   fi
 }
 
+function update_chezmoi_data() {
+  local key="$1"
+  local value="$2"
+  local data_file="${HOME}/.local/share/chezmoi/.chezmoidata.yaml"
+
+  log_task "Updating chezmoi data: ${key} = ${value}"
+
+  # Check if the data file exists
+  if [[ ! -f "${data_file}" ]]; then
+    log_error "Chezmoi data file not found at: ${data_file}"
+    return 1
+  fi
+
+  # Update the value in the data file
+  if command -v yq >/dev/null 2>&1; then
+    # Use yq if available (more reliable for YAML manipulation)
+    yq eval ".${key} = \"${value}\"" -i "${data_file}"
+  else
+    # Fallback to sed (less reliable but works for simple cases)
+    if grep -q "^${key}:" "${data_file}"; then
+      sed -i "s/^${key}:.*/${key}: \"${value}\"/" "${data_file}"
+    else
+      echo "${key}: \"${value}\"" >> "${data_file}"
+    fi
+  fi
+
+  log_info "Updated chezmoi data: ${key} = ${value}"
+}
+
 function setup_ssh_key() {
   log_task "Setting up SSH key from certificate"
 
@@ -194,7 +223,8 @@ function setup_ssh_key() {
   fi
 
   # Check if we have an SSH certificate path configured
-  if [[ -z "${ssh_cert_path:-}" ]]; then
+  local ssh_cert_path="{{ .ssh_cert_path }}"
+  if [[ -z "${ssh_cert_path}" || "${ssh_cert_path}" == "" ]]; then
     log_info "No SSH certificate path configured. Skipping SSH setup."
     return 0
   fi
@@ -225,6 +255,9 @@ function setup_ssh_key() {
   local key_path="${HOME}/.ssh/${key_name}"
   log_info "Detected SSH key type: ${key_type}, using key name: ${key_name}"
 
+  # Update chezmoi data with the SSH key name
+  update_chezmoi_data "ssh_key_name" "${key_name}"
+
   # Copy the certificate to the SSH directory
   log_task "Copying SSH certificate to ${key_path}"
   copy_ssh_key "${ssh_cert_path}" "${key_name}"
@@ -249,7 +282,8 @@ function setup_ssh_key() {
 }
 
 # Only run if we have SSH certificate path configured
-if [[ -n "${ssh_cert_path:-}" ]]; then
+ssh_cert_path="{{ .ssh_cert_path }}"
+if [[ -n "${ssh_cert_path}" && "${ssh_cert_path}" != "" ]]; then
   setup_ssh_key
 else
   log_info "No SSH certificate path configured. Skipping SSH key setup."
