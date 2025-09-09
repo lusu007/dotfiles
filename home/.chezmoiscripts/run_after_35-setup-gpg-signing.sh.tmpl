@@ -25,19 +25,61 @@ function validate_gpg_key_id() {
 
 function import_gpg_key() {
   local key_file="$1"
+  local temp_file=""
+
+  # Check if the file exists
   if [[ ! -f "${key_file}" ]]; then
     log_error "GPG key file '${key_file}' does not exist"
     return 1
   fi
 
+  # If the file is on a Windows mount (like /mnt/c/), try multiple approaches
+  if [[ "${key_file}" =~ ^/mnt/[a-z]/ ]]; then
+    log_task "Detected Windows filesystem path, attempting to access GPG key"
+
+    # First, try to copy the file to a temp location
+    temp_file=$(mktemp)
+    log_task "Attempting to copy GPG key from Windows filesystem to temporary location"
+
+    if cp "${key_file}" "${temp_file}" 2>/dev/null; then
+      key_file="${temp_file}"
+      log_info "GPG key copied to temporary file: ${temp_file}"
+    else
+      # If copy fails, try using cat to read and pipe to gpg
+      log_task "Copy failed, trying alternative method with cat"
+      if cat "${key_file}" 2>/dev/null | gpg --import; then
+        log_info "GPG key imported successfully using cat method"
+        return 0
+      else
+        log_error "Failed to access GPG key file from OneDrive"
+        log_error "This is a known issue with OneDrive and WSL2"
+        log_manual_action "Please try one of these solutions:"
+        echo "1. Copy the GPG key file to a local WSL2 directory (e.g., ~/gpg-keys/)"
+        echo "2. Use Windows PowerShell to copy the file to a different location"
+        echo "3. Temporarily move the file outside of OneDrive"
+        echo "4. Use Windows Subsystem for Linux with a different file location"
+        return 1
+      fi
+    fi
+  fi
+
   log_task "Importing GPG key from '${key_file}'"
+  local import_result=0
   if gpg --import "${key_file}"; then
     log_info "GPG key imported successfully"
-    return 0
+    import_result=0
   else
     log_error "Failed to import GPG key from '${key_file}'"
-    return 1
+    import_result=1
   fi
+
+  # Clean up temporary file if we created one
+  if [[ -n "${temp_file}" && -f "${temp_file}" ]]; then
+    rm -f "${temp_file}"
+    log_info "Cleaned up temporary GPG key file"
+  fi
+
+  return "${import_result}"
 }
 
 function configure_git_gpg() {
@@ -111,6 +153,28 @@ function update_chezmoi_data() {
   log_info "Updated chezmoi data: ${key} = ${value}"
 }
 
+function suggest_alternative_gpg_path() {
+  log_manual_action "Alternative GPG key setup:"
+  echo ""
+  echo "Since OneDrive access from WSL2 is problematic, here are your options:"
+  echo ""
+  echo "Option 1: Copy the key to a local WSL2 directory"
+  echo "  mkdir -p ~/gpg-keys"
+  echo "  # Then copy your private.gpg file to ~/gpg-keys/private.gpg"
+  echo "  # Update your chezmoi data: gpg_cert_path: \"~/gpg-keys/private.gpg\""
+  echo ""
+  echo "Option 2: Use Windows PowerShell to copy the file"
+  echo "  # Open PowerShell as Administrator and run:"
+  echo "  Copy-Item \"C:\\Users\\lukas\\OneDrive\\Dokumente\\10 - Privat\\40 - Development\\Keys\\Git GPG\\private.gpg\" \"C:\\Users\\lukas\\private.gpg\""
+  echo "  # Then update your chezmoi data: gpg_cert_path: \"/mnt/c/Users/lukas/private.gpg\""
+  echo ""
+  echo "Option 3: Temporarily move the file outside OneDrive"
+  echo "  # Move the file to C:\\Users\\lukas\\Documents\\private.gpg"
+  echo "  # Update your chezmoi data: gpg_cert_path: \"/mnt/c/Users/lukas/Documents/private.gpg\""
+  echo ""
+  echo "After updating the path, run this script again."
+}
+
 function setup_gpg_signing() {
   log_task "Setting up GPG signing for GitHub"
 
@@ -151,6 +215,7 @@ function setup_gpg_signing() {
   log_task "Importing GPG certificate from ${gpg_cert_path}"
   if ! import_gpg_key "${gpg_cert_path}"; then
     log_error "Failed to import GPG certificate"
+    suggest_alternative_gpg_path
     return 1
   fi
 
