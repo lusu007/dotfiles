@@ -1,3 +1,11 @@
+# User information
+name: "Lukas Jost"
+email: "lukas.jost@outlook.com"
+editor: "code --wait"
+
+# System information
+is_wsl: true
+
 fontsDir: .local/share/fonts
 
 terminalFont:
@@ -6,3 +14,6 @@ terminalFont:
 
 # GPG configuration
 gpg_key_id: ""  # Set this to your GPG key ID (e.g., "ABCD1234567890AB")
+
+# SSH configuration
+ssh_key_name: ""  # Set this to your SSH key name (e.g., "id_ed25519")
