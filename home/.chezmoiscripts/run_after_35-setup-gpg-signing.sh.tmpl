@@ -82,6 +82,35 @@ function display_public_key() {
   echo ""
 }
 
+function update_chezmoi_data() {
+  local key="$1"
+  local value="$2"
+  local data_file="${HOME}/.local/share/chezmoi/.chezmoidata.yaml"
+
+  log_task "Updating chezmoi data: ${key} = ${value}"
+
+  # Check if the data file exists
+  if [[ ! -f "${data_file}" ]]; then
+    log_error "Chezmoi data file not found at: ${data_file}"
+    return 1
+  fi
+
+  # Update the value in the data file
+  if command -v yq >/dev/null 2>&1; then
+    # Use yq if available (more reliable for YAML manipulation)
+    yq eval ".${key} = \"${value}\"" -i "${data_file}"
+  else
+    # Fallback to sed (less reliable but works for simple cases)
+    if grep -q "^${key}:" "${data_file}"; then
+      sed -i "s/^${key}:.*/${key}: \"${value}\"/" "${data_file}"
+    else
+      echo "${key}: \"${value}\"" >> "${data_file}"
+    fi
+  fi
+
+  log_info "Updated chezmoi data: ${key} = ${value}"
+}
+
 function setup_gpg_signing() {
   log_task "Setting up GPG signing for GitHub"
 
@@ -134,6 +163,9 @@ function setup_gpg_signing() {
   fi
 
   log_info "Extracted GPG key ID: ${key_id}"
+
+  # Update chezmoi data with the GPG key ID
+  update_chezmoi_data "gpg_key_id" "${key_id}"
 
   # Configure git for GPG signing
   configure_git_gpg "${key_id}" "${email:-}"

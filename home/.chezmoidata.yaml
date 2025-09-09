@@ -3,3 +3,6 @@ fontsDir: .local/share/fonts
 terminalFont:
   fileName: Fira Code Regular Nerd Font Complete Mono.ttf
   name: FiraCode Nerd Font Mono
+
+# GPG configuration
+gpg_key_id: ""  # Set this to your GPG key ID (e.g., "ABCD1234567890AB")
